@@ -2,11 +2,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
-import AuthCallback from './pages/AuthCallback'; // ✅ Add this import
+import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import DocumentDetail from './pages/DocumentDetail';
 import Profile from './pages/Profile';
 import DocumentUpload from './pages/DocumentUpload';
+import GmailDocument from './pages/gmailDocument';
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/auth-callback" element={<AuthCallback />} /> {/* ✅ Add this route - NO ProtectedRoute wrapper */}
+          <Route path="/auth-callback" element={<AuthCallback />} />
           
           {/* Protected Routes */}
           <Route
@@ -49,6 +50,15 @@ function App() {
                 <DocumentUpload />
               </ProtectedRoute>
             } 
+          />
+          {/* ✅ Gmail Document Route - now properly imported */}
+          <Route
+            path="/gmail-document/:id"
+            element={
+              <ProtectedRoute>
+                <GmailDocument />
+              </ProtectedRoute>
+            }
           />
           
           {/* Default Routes */}

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
+import DocumentViewer from "../components/DocumentViewer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -28,6 +29,7 @@ interface DocumentWithDetails {
   department?: { name?: string };
   profile?: { full_name?: string };
   file_url?: string;
+  file_type?: string;
 }
 
 interface Comment {
@@ -402,9 +404,14 @@ export default function DocumentDetail() {
                 )}
               </div>
 
-              <div className="prose max-w-none whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {document.content || "No content available"}
-              </div>
+             <div className="bg-white rounded-xl shadow-sm border" style={{ height: "600px" }}>
+  <DocumentViewer
+    fileId={document._id}
+    fileName={document.title}
+    fileType={document.file_type}
+    isGmailAttachment={false}
+  />
+</div>
             </div>
           </div>
 

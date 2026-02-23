@@ -68,17 +68,14 @@ export const googleCallback = async (req, res) => {
       { upsert: true }
     );
 
-    // ✅ Make sure the JWT payload matches what auth middleware expects
     const appToken = jwt.sign(
-      { id: user._id.toString() }, // ✅ Use 'id' to match auth middleware
+      { id: user._id.toString() },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
     console.log("🔴 Generated JWT token for user ID:", user._id.toString());
-    console.log("🔴 Token preview:", appToken.substring(0, 50) + "...");
 
-    // ✅ Create profile object
     const profileData = {
       id: user._id.toString(),
       email: user.email,
@@ -86,16 +83,10 @@ export const googleCallback = async (req, res) => {
       avatar_url: userinfo.picture || ""
     };
 
-    console.log("🔴 Profile data:", profileData);
-
-    // ✅ Encode profile for URL
     const encodedProfile = encodeURIComponent(JSON.stringify(profileData));
-    
-    // ✅ Build redirect URL
     const redirectUrl = `${process.env.FRONTEND_URL}/auth-callback?token=${appToken}&profile=${encodedProfile}`;
     
     console.log("🔴 Redirecting to:", redirectUrl);
-    
     res.redirect(redirectUrl);
   } catch (err) {
     console.error("❌ googleCallback error:", err);
@@ -118,8 +109,7 @@ export const loadToken = async (userId) => {
 // -----------------------------
 export const fetchMailAttachments = async (req, res) => {
   try {
-    // Get userId from authenticated user (from JWT token)
-    const userId = req.userId || req.user?.id; // ✅ Support both formats
+    const userId = req.userId || req.user?.id;
     if (!userId) {
       console.log("❌ No userId in request");
       return res.status(401).json({ error: "Not authenticated" });
@@ -167,8 +157,10 @@ export const fetchMailAttachments = async (req, res) => {
         const fileBuffer = Buffer.from(attachment.data.data, "base64");
         const uniqueName = `${Date.now()}-${part.filename}`;
 
+        // ✅ FIX: Store userId in metadata so we can filter by user later
         const uploadStream = gfs.openUploadStream(uniqueName, {
           metadata: {
+            userId: userId.toString(), // ✅ ADD THIS
             from: msg.data.payload.headers.find((h) => h.name === "From")?.value || "",
             subject: msg.data.payload.headers.find((h) => h.name === "Subject")?.value || "",
             messageId: mail.id,
@@ -199,27 +191,77 @@ export const fetchMailAttachments = async (req, res) => {
 };
 
 // -----------------------------
-// List stored attachments
+// ✅ FIX: List stored attachments - ONLY for current user
 // -----------------------------
 export const listMailFiles = async (req, res) => {
   try {
+    const userId = req.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    console.log("🔴 Listing files for user:", userId);
+
     await getGFS();
+    
+    // ✅ FIX: Filter by userId in metadata
     const files = await mongoose.connection.db
       .collection("mailUploads.files")
-      .find()
+      .find({ "metadata.userId": userId.toString() }) // ✅ FILTER BY USER
       .toArray();
 
+    console.log(`✅ Found ${files.length} files for user ${userId}`);
     res.json(files);
   } catch (err) {
+    console.error("❌ listMailFiles error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
 // -----------------------------
-// Download file
+// ✅ Get single file details - ONLY if it belongs to current user
+// -----------------------------
+export const getMailFile = async (req, res) => {
+  try {
+    const userId = req.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const { id } = req.params;
+
+    const file = await mongoose.connection.db
+      .collection("mailUploads.files")
+      .findOne({ _id: new mongoose.Types.ObjectId(id) });
+
+    if (!file) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    // ✅ Check if file belongs to current user
+    if (file.metadata?.userId !== userId.toString()) {
+      console.log(`❌ User ${userId} tried to access file owned by ${file.metadata?.userId}`);
+      return res.status(403).json({ message: "Access denied. This file does not belong to you." });
+    }
+
+    console.log(`✅ User ${userId} accessing their file: ${file.filename}`);
+    res.json(file);
+  } catch (err) {
+    console.error("❌ getMailFile error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// -----------------------------
+// ✅ FIX: Download file - ONLY if it belongs to current user
 // -----------------------------
 export const downloadMailFile = async (req, res) => {
   try {
+    const userId = req.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     const { id } = req.params;
     const gfs = await getGFS();
 
@@ -227,11 +269,22 @@ export const downloadMailFile = async (req, res) => {
       .collection("mailUploads.files")
       .findOne({ _id: new mongoose.Types.ObjectId(id) });
 
-    if (!file) return res.status(404).json({ message: "Not found" });
+    if (!file) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    // ✅ FIX: Check if file belongs to current user
+    if (file.metadata?.userId !== userId.toString()) {
+      console.log(`❌ User ${userId} tried to access file owned by ${file.metadata?.userId}`);
+      return res.status(403).json({ message: "Access denied. This file does not belong to you." });
+    }
+
+    console.log(`✅ User ${userId} downloading their file: ${file.filename}`);
 
     res.set("Content-Disposition", `attachment; filename="${file.filename}"`);
     gfs.openDownloadStream(file._id).pipe(res);
   } catch (err) {
+    console.error("❌ downloadMailFile error:", err);
     res.status(500).json({ error: err.message });
   }
 };
