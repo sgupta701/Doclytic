@@ -25,22 +25,36 @@ export default function TopNav() {
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // Language State
+  const [language, setLanguage] = useState(
+    localStorage.getItem("appLanguage") || "en"
+  );
+
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (profile) loadNotifications();
-  }, [profile]);
+  }, [profile, language]); // reload when language changes
 
   useEffect(() => {
-    socket.on("new-notification", (data) => {
-      setNotifications((prev) => [data, ...prev]);
+    socket.on("new-notification", async (data) => {
+      if (language === "hi") {
+        const translated = {
+          ...data,
+          title: await translateText(data.title),
+          message: await translateText(data.message),
+        };
+        setNotifications((prev) => [translated, ...prev]);
+      } else {
+        setNotifications((prev) => [data, ...prev]);
+      }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [language]);
 
   // Click outside close
   useEffect(() => {
@@ -65,12 +79,50 @@ export default function TopNav() {
     return fetch(url, { ...options, headers });
   };
 
+const translateText = async (text: string) => {
+  try {
+    const res = await fetch(`${API_URL}/translate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        target: language === "hi" ? "Hindi" : "English",
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error(data);
+      return text;
+    }
+
+    return data.translatedText;
+
+  } catch (err) {
+    console.error("Translation error:", err);
+    return text;
+  }
+};
+
   const loadNotifications = async () => {
     try {
       const res = await authFetch(`${API_URL}/notifications/my`);
       if (!res.ok) return;
       const data = await res.json();
-      setNotifications(data);
+
+      if (language === "hi") {
+        const translated = await Promise.all(
+          data.map(async (n: NotificationType) => ({
+            ...n,
+            title: await translateText(n.title),
+            message: await translateText(n.message),
+          }))
+        );
+        setNotifications(translated);
+      } else {
+        setNotifications(data);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -176,8 +228,15 @@ export default function TopNav() {
             </AnimatePresence>
           </div>
 
-          {/* Globe */}
-          <button className="p-2 rounded-xl hover:bg-gray-100 transition">
+          {/* 🌍 Language Toggle (Functionality Added Only) */}
+          <button
+            onClick={() => {
+              const newLang = language === "en" ? "hi" : "en";
+              setLanguage(newLang);
+              localStorage.setItem("appLanguage", newLang);
+            }}
+            className="p-2 rounded-xl hover:bg-gray-100 transition"
+          >
             <Globe className="w-6 h-6 text-gray-700" />
           </button>
 
@@ -235,6 +294,7 @@ export default function TopNav() {
               )}
             </AnimatePresence>
           </div>
+
         </div>
       </div>
     </nav>
