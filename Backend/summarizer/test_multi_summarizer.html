@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Multi-Doc Summarizer Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .box { border: 1px solid #ccc; padding: 15px; margin-top: 15px; }
+        #output {
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+            font-family: inherit;  
+        }
+    </style>
+</head>
+<body>
+    <h2>Test Multi-Doc Endpoint</h2>
+    <input type="file" id="fileInput" multiple>
+    <button onclick="uploadFiles()">Upload Batch</button>
+    
+    <div class="box">
+        <strong>Backend Response:</strong>
+        <pre id="output">Waiting for files...</pre>
+    </div>
+
+    <script>
+        async function uploadFiles() {
+            const files = document.getElementById('fileInput').files;
+            if (files.length === 0) {
+                alert("Please select some files first!");
+                return;
+            }
+
+            document.getElementById('output').textContent = "Uploading and processing... This might take a moment.";
+            
+            const formData = new FormData();
+            // Append each file to the 'files' key
+            for (let i = 0; i < files.length; i++) {
+                formData.append("files", files[i]);
+            }
+
+            try {
+            const response = await fetch("http://127.0.0.1:8000/summarize-batch", {
+                method: "POST",
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            document.getElementById('output').innerText = result.summary; 
+            
+            } catch (error) {
+                document.getElementById('output').textContent = "Error: " + error;
+            }
+        }
+    </script>
+</body>
+</html>
