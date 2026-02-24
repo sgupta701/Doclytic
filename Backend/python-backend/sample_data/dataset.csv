@@ -1,0 +1,263 @@
+text,label
+Invoice: voice training supplied by Beta Solutions. Total: 152000 INR.","invoice"
+"Invoice: gym equipment supplied by Gamma Tech. Total: 320000 INR.","invoice"
+"Invoice: analytics dashboard supplied by Delta Services. Total: 66400 INR.","invoice"
+"Invoice: storage servers supplied by Alpha Corp. Total: 18000 INR.","invoice"
+"Invoice: tech support supplied by Beta Solutions. Total: 6900 INR.","invoice"
+"Invoice: brochure design supplied by Gamma Tech. Total: 278500 INR.","invoice"
+"Invoice: IT hardware supplied by Delta Services. Total: 75000 INR.","invoice"
+"Invoice: voice training supplied by Alpha Corp. Total: 152000 INR.","invoice"
+"Invoice: gym equipment supplied by Beta Solutions. Total: 320000 INR.","invoice"
+"Invoice: analytics dashboard supplied by Gamma Tech. Total: 66400 INR.","invoice"
+"Invoice No: INV-2345 Date: 2024-05-12 Supplier: ACME Pvt Ltd Amount Due: 15,640 INR",invoice
+"Invoice generated for purchase order PO-445. Total billed amount: 9,880 INR. Due date: 2025-01-15",invoice
+"Payment Invoice - Vendor: Omega Traders. Items: 12 units. Net Payable: 45,210 INR",invoice
+"ACME Corp Invoice. Billing cycle: Monthly Subscription Fee 2,999 INR. GST: 18%",invoice
+"Purchase Invoice: Laptop and peripherals. Total: 78,400 INR. Customer ID: 88772",invoice
+"Billing Invoice for Maintenance Services. Total Charges: 12,450 INR. Pay before 10th June",invoice
+"Service Invoice No 7788 raised for electrical repairs. Labor cost and service tax included.",invoice
+"Tax Invoice. Seller: TechMart Pvt Ltd. Amount Payable: 32,900 INR. GSTIN: 27ABCDE2211F1",invoice
+"Invoice for consultancy service. Hours billed: 18. Total: 22,500 INR",invoice
+"Invoice #9921 for cloud hosting charges for Q1. Payment terms: NET30",invoice
+"Tax Invoice: Vendor Apex Systems. Invoice ID INV-11201. Total Amount: 48,230 INR due on 15 Aug 2025.",invoice
+"Invoice for website development services. Hours billed: 36. Net payable: 54,000 INR.",invoice
+"Invoice Statement – Subscription renewal for cloud services. Amount: 12,999 INR.",invoice
+"Invoice No 7765: Purchase of office desks. Qty: 8. Total: 96,000 INR.",invoice
+"Service Invoice for AC maintenance. Total bill: 4,750 INR including GST.",invoice
+"Purchase Invoice: Graphics Cards (3 units). Total 1,20,000 INR. Supplier Code: GFX-22.",invoice
+"Billing Invoice – Annual software license. Net amount: 18,400 INR.",invoice
+"Invoice: Freelance Content Writing. Words: 8,000. Payable: 6,400 INR.",invoice
+"Invoice for network installation. Labor + wiring charges: 22,500 INR.",invoice
+"Invoice Document: Catering services for corporate event. Total: 37,000 INR.",invoice
+"Invoice #8209: Printer cartridges and toners. Amount: 8,780 INR.",invoice
+"Tax Invoice for security surveillance system setup. Gross: 1,45,000 INR.",invoice
+"Billing Invoice for project consulting. Hours: 12. Total Fee: 18,000 INR.",invoice
+"Invoice: Logo design + brand kit creation. Payable: 15,300 INR.",invoice
+"Invoice – Transport services for goods delivery. Charges: 9,250 INR.",invoice
+"Purchase Invoice: Monitors (5 units). Total Cost: 55,500 INR including tax.",invoice
+"Invoice for marketing campaign execution. Total billed: 82,000 INR.",invoice
+"Subscription Invoice for accounting software. Annual fee: 9,999 INR.",invoice
+"Invoice: Photography and videography services for conference. Total: 42,600 INR.",invoice
+"Invoice #9932 for content moderation services provided in June. Amount: 28,000 INR.",invoice
+"Invoice for web hosting plan. Duration: 1 year. Total Due: 4,500 INR.",invoice
+"Service Invoice – Digital ads management fee: 32,800 INR.",invoice
+"Invoice No. 44321 for laptop servicing. Total: 2,450 INR.",invoice
+"Tax Invoice: Industrial electrical setup. Grand Total: 2,40,000 INR.",invoice
+"Invoice: Data recovery services. Charges: 19,800 INR.",invoice
+"Invoice Statement – Cloud storage overage charges: 1,850 INR.",invoice
+"Billing Invoice: CCTV equipment. Total Payable: 68,900 INR.",invoice
+"Invoice for business consulting. Monthly retainer: 50,000 INR.",invoice
+"Purchase Invoice – Software upgrades and patches. Total: 14,700 INR.",invoice
+"Budget Invoice for UI/UX redesign sprint. Total: 60,200 INR.",invoice
+"Invoice: Annual maintenance contract renewal. Payable: 30,000 INR.",invoice
+"Invoice #11209 for facility cleaning services. Total: 18,450 INR.",invoice
+"Consultation Invoice – Strategic planning session. Fee: 22,000 INR.",invoice
+"Invoice for training workshop on AI Basics. Total: 41,300 INR.",invoice
+"Tax Invoice: Lab equipment procurement. Total: 92,500 INR.",invoice
+"Invoice for event management logistics. Amount: 1,10,000 INR.",invoice
+"Invoice: Drone inspection services. Total: 26,800 INR.",invoice
+"Invoice: Website audit and SEO improvement. Payable: 17,000 INR.",invoice
+"Tax Invoice No 77712 for IT cabling services. Total: 39,200 INR.",invoice
+"Monthly Invoice for cybersecurity monitoring. Fee: 12,200 INR.",invoice
+"Invoice for outsourced HR services. Total Payable: 48,000 INR.",invoice
+"Invoice: Mobile app UI revision. Amount: 23,900 INR.",invoice
+"Invoice #55910 for domain renewal (3 domains). Total: 2,850 INR.",invoice
+"Invoice for corporate training on ML. Total: 75,000 INR.",invoice
+"Tax Invoice: Gym equipment supply. Total: 1,52,000 INR.",invoice
+"Invoice for analytics dashboard deployment. Amount: 66,400 INR.",invoice
+"Purchase Invoice for storage servers. Total Cost: 3,20,000 INR.",invoice
+"Invoice: SLA-based tech support. Monthly Fee: 18,000 INR.",invoice
+"Invoice for brochure design. Total: 6,900 INR.",invoice
+"Tax Invoice: IT hardware supplies. Grand Total: 2,78,500 INR.",invoice
+
+
+"Employment Contract between Alpha Corp and John Doe. Terms & Conditions apply.","contract"
+"Employment Contract between Beta Solutions and Jane Smith. Terms & Conditions apply.","contract"
+"Employment Contract between XYZ Ltd and Michael Brown. Terms & Conditions apply.","contract"
+"Employment Contract between Tech Innovations and Emily White. Terms & Conditions apply.","contract"
+"Employment Contract between Alpha Corp and David Green. Terms & Conditions apply.","contract"
+"Employment Contract between Alpha Corp and John Doe. Effective Date: 1 Jan 2025. Terms & Conditions apply.",contract
+"Service Contract outlining deliverables, confidentiality clauses, and payment milestones.",contract
+"Contract Agreement: Party A and Party B agree to business collaboration. Validity: 2 years.",contract
+"Vendor Contract authorizing supply of materials. Conditions include penalties for delay.",contract
+"Contract Document: Non-Disclosure agreement (NDA) between employee and employer.",contract
+"Commercial Contract Clause 5 specifies payment timelines. Signed by both parties.",contract
+"Legal Contract for procurement of IT equipment. Binding terms mentioned.",contract
+"Contract: Statement of Work (SOW) defining scope, acceptance criteria, and responsibilities.",contract
+"Employment Agreement for full-time role with salary, benefits, and termination clauses.",contract
+"Master Service Agreement defining rights, obligations, and dispute resolution terms.",contract
+"Employment Contract specifying probation period, salary terms, and confidentiality obligations.",contract
+"Service Agreement between ABC Corp and Vendor for annual maintenance.",contract
+"Contract Document stating liability clauses and indemnification terms.",contract
+"Partnership Contract defining resource sharing and revenue split.",contract
+"Vendor Agreement: Supply timeline, pricing, and warranty conditions.",contract
+"Contract for temporary staffing services including non-poaching clause.",contract
+"Master Service Agreement outlining onboarding procedures and KPI requirements.",contract
+"Contract: Non-disclosure + intellectual property protection terms.",contract
+"Business Contract between two parties for marketing collaboration.",contract
+"Legal Contract including arbitration clause and governing law jurisdiction.",contract
+"Service Level Agreement (SLA) detailing uptime commitments.",contract
+"Contract Amendment updating payment schedule and scope changes.",contract
+"Contract: Project outsourcing terms including deliverable dates.",contract
+"Contract for cloud migration project with milestone-based payments.",contract
+"Employee Agreement defining leave policy and performance metrics.",contract
+"Work Order Contract specifying quantity, rate, and delivery dates.",contract
+"Service Contract defining technical assistance responsibilities.",contract
+"Contract for data entry outsourcing with confidentiality obligations.",contract
+"Consultancy Contract specifying fee structure and dependency risks.",contract
+"Contract Document: Multi-year facility management agreement.",contract
+"NDA Contract restricting disclosure of proprietary information.",contract
+"Contract between client and contractor for construction services.",contract
+"Agreement defining support services for IT infrastructure.",contract
+"Contract for cybersecurity services including incident response.",contract
+"Consultant Agreement covering deliverables and retainer fees.",contract
+"Contract specifying rights for use of digital media assets.",contract
+"Property Lease Contract outlining rental conditions.",contract
+"Contract for background verification services.",contract
+"Maintenance Contract with 24x7 support terms.",contract
+"Supply Contract for office stationery items.",contract
+"Contract defining testing and acceptance criteria for software.",contract
+"Master Agreement for procurement of network devices.",contract
+"Service Contract addressing workforce allocation.",contract
+"Contract outlining analytics service deliverables.",contract
+"Contract for project management office (PMO) services.",contract
+"Confidentiality Agreement for a research collaboration.",contract
+"Professional Contract for audit services.",contract
+"Contract specifying machine installation warranty.",contract
+"Agreement defining vendor onboarding procedures.",contract
+"Data Sharing Contract specifying usage restrictions.",contract
+"IT Hardware Purchase Contract with delivery milestones.",contract
+"Maintenance Contract outlining AMC charges.",contract
+"Contract around logistics and distribution services.",contract
+"Legal Agreement for investment advisory.",contract
+"Contract specifying storage facility rental.",contract
+"Contract for training and development services.",contract
+"IT Outsourcing Contract specifying SLAs.",contract
+"Enterprise support agreement with escalation matrix.",contract
+"Contract defining termination reasons and penalties.",contract
+"Framework agreement for supply chain optimization.",contract
+
+
+"Resume: John Doe. Education: B.Tech CSE. Skills: Python, Java, Machine Learning. Projects included.",resume
+"Curriculum Vitae – Jane Smith. Experience: 2 years as Data Analyst. Tools: Tableau, SQL.",resume
+"Resume Summary: Software Developer with experience in React, Node.js, and REST APIs.",resume
+"CV: Professional summary, work history, skills, certifications, and contact details.",resume
+"Resume containing academic achievements, internships, programming skills, and volunteer work.",resume
+"Candidate Resume – Name: Rahul Verma. Experience in DevOps tools and CI/CD pipelines.",resume
+"Resume: UX Designer with portfolio links, wireframes, and prototyping experience.",resume
+"CV showing technical skills including AWS, Docker, Kubernetes, and microservices.",resume
+"Resume with details on education, projects, GitHub profile, and hackathon achievements.",resume
+"Professional Resume – Cloud Engineer specializing in Azure and Terraform.",resume
+"Resume: Candidate skilled in Java, Spring Boot, and Microservices.",resume
+"CV mentioning experience in project coordination and Agile methodologies.",resume
+"Resume of a Data Scientist skilled in Python, Pandas, and ML.",resume
+"Curriculum Vitae for Software Engineer with React/Node.js experience.",resume
+"Resume highlighting academic work, GitHub projects, and internships.",resume
+"Resume: Cloud Architect experienced in AWS and Terraform templates.",resume
+"CV featuring UI/UX design portfolio and Figma mockups.",resume
+"Resume showing strong SQL, data warehousing, and ETL skills.",resume
+"Resume: Android Developer with Kotlin and Jetpack experience.",resume
+"Resume listing hackathon participation and competitive coding.",resume
+"Professional CV for DevOps Engineer with Kubernetes experience.",resume
+"Resume: Full Stack Developer with MERN stack expertise.",resume
+"Resume with achievements in robotics competitions.",resume
+"Resume highlighting publications and conference presentations.",resume
+"CV including experience in embedded systems and IoT programming.",resume
+"Resume: System Administrator familiar with Linux and shell scripting.",resume
+"Resume: QA Engineer skilled in Selenium and automation frameworks.",resume
+"Resume listing leadership roles and communication skills.",resume
+"Resume showing certifications in CCNA and cloud security.",resume
+"Resume: Product Manager with experience in user research.",resume
+"CV highlighting social media marketing experience.",resume
+"Resume: Data Engineer handling pipelines using PySpark.",resume
+"Resume: Blockchain Developer with Solidity experience.",resume
+"Resume outlining course projects in AI and reinforcement learning.",resume
+"Resume detailing three internships in software engineering.",resume
+"Curriculum Vitae for cybersecurity analyst role.",resume
+"Resume: Business Analyst with skills in Excel and Tableau.",resume
+"Resume including language proficiency and extracurriculars.",resume
+"Resume: Research Intern working on NLP tasks.",resume
+"Resume featuring open-source contributions.",resume
+"Resume emphasizing teamwork and leadership abilities.",resume
+"Resume: Backend developer with Django and REST expertise.",resume
+"CV with CAD design experience and manufacturing knowledge.",resume
+"Resume showing certifications in cloud native development.",resume
+"Resume: ML Engineer with PyTorch model deployment experience.",resume
+"Resume summarizing strengths in analytical thinking.",resume
+"Resume: iOS Developer experienced in SwiftUI.",resume
+"Resume outlining responsibilities in a previous internship.",resume
+"Resume describing proficiency with git and CI/CD tools.",resume
+"Resume: UI Developer proficient with HTML, CSS, JS.",resume
+"Resume: Python Developer and automation specialist.",resume
+"Resume showing academic excellence in CS courses.",resume
+"Resume: AR/VR Developer with Unity 3D experience.",resume
+"Resume mentioning publications in IEEE journals.",resume
+"Resume highlighting problem solving and DSA skills.",resume
+"Resume featuring side projects including a portfolio site.",resume
+"Resume describing proficiency with MATLAB and simulations.",resume
+"Resume: HPC and parallel computing coursework.",resume
+"Resume of tech support engineer troubleshooting IT systems.",resume
+"Resume including training in cloud migration projects.",resume
+
+
+"Monthly Project Report: Completed tasks, blockers, upcoming milestones.",report
+"Weekly Status Report for Sprint 5. Activities completed and pending issues highlighted.",report
+"Performance Report summarizing KPIs, metrics, and departmental achievements.",report
+"Internal Report detailing budget usage, expenditures, and variance analysis.",report
+"Audit Report for Q4 including compliance findings and corrective actions proposed.",report
+"Progress Report for infrastructure upgrade project. Phase 1 completed.",report
+"Daily Report capturing on-site activity, manpower, and work hours logged.",report
+"Research Report discussing methodology, results, and conclusion.",report
+"Financial Report presenting quarterly performance and revenue breakdown.",report
+"Operations Report: Summary of service efficiency, uptime statistics, and SLAs.",report
+"Monthly Sales Report showing revenue growth and KPI performance.",report
+"Weekly Work Report detailing completed tasks and pending activities.",report
+"Quarterly Audit Report including compliance risk findings.",report
+"Annual Performance Report summarizing company metrics.",report
+"Environmental Impact Report analyzing carbon footprint.",report
+"Research Report discussing experiment results and methodology.",report
+"Budget Utilization Report for Q2.",report
+"Incident Report describing system failure and resolution.",report
+"Training Report summarizing workshop outcomes.",report
+"Risk Assessment Report identifying vulnerabilities.",report
+"Survey Report presenting feedback analysis.",report
+"Operations Report summarizing SLA metrics.",report
+"Financial Report for quarterly expenditure.",report
+"Market Analysis Report covering trends and forecasts.",report
+"Maintenance Report evaluating machine downtime.",report
+"Lab Test Report outlining chemical analysis.",report
+"Inspection Report of safety equipment.",report
+"Daily Report highlighting manpower and productivity.",report
+"Technical Report describing architecture and design.",report
+"Customer Feedback Report with sentiment insights.",report
+"Inventory Report tracking stock movement.",report
+"Network Performance Report showing latency trends.",report
+"Testing Report for software release version.",report
+"Utilization Report for allocated budget.",report
+"Compliance Report for regulatory bodies.",report
+"Manufacturing Report showing production output.",report
+"Quality Control Report listing rejected items.",report
+"Business Review Report for stakeholders.",report
+"Energy Audit Report recommending optimizations.",report
+"Team Productivity Report summarizing sprint performance.",report
+"Workshop Report capturing key learnings.",report
+"Analytical Report detailing statistical methods.",report
+"HR Report summarizing attrition data.",report
+"Process Improvement Report proposing changes.",report
+"Safety Report listing incidents and preventive measures.",report
+"Project Closure Report summarizing deliverables.",report
+"Competitor Analysis Report for strategy planning.",report
+"Internal Review Report for Q1 operations.",report
+"IT Infrastructure Report fault analysis.",report
+"Product Evaluation Report comparing features.",report
+"Security Assessment Report outlining threats.",report
+"Supply Chain Report measuring vendor performance.",report
+"Campus Placement Report summarizing selections.",report
+"Healthcare Report describing patient statistics.",report
+"Logistics Report showing delivery efficiency.",report
+"Monitoring Report summarizing system usage.",report
+"Research Summary Report for publication.",report
+"Executive Summary Report for leadership team.",report
+"Hardware Failure Analysis Report.",report
+"Strategic Review Report outlining objectives.",report
+
