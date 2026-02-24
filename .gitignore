@@ -36,3 +36,8 @@ torch_cache/
 # Uploaded files (if any)
 uploads/
 temp/
+
+node_modules
+.env
+.env.*
+
