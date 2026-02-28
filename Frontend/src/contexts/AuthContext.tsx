@@ -5,6 +5,7 @@ export interface UserProfile {
   id?: string;
   email: string;
   full_name: string;
+  department_id?: string;
   avatar?: string;
   avatar_url?: string;
   designation?: string;

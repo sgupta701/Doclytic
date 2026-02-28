@@ -9,6 +9,7 @@ import Profile from './pages/Profile';
 import DocumentUpload from './pages/DocumentUpload';
 import GmailDocument from './pages/GmailDocument';
 import ComplianceCalendar from './components/ComplianceCalendar.tsx';
+import DepartmentDocuments from './pages/DepartmentDocuments';
 
 function App() {
   return (
@@ -65,6 +66,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <GmailDocument />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/department/:slug"
+            element={
+              <ProtectedRoute>
+                <DepartmentDocuments />
               </ProtectedRoute>
             }
           />

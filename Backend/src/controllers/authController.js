@@ -21,10 +21,10 @@ export const register = async (req, res) => {
       id: user._id,
       email: user.email,
       full_name: user.full_name,
-      department: user.department,
+      department_id: user.department_id,
       designation: user.designation,
       working_hours: user.working_hours,
-      avatar: user.avatar,
+      avatar_url: user.avatar_url,
     } });
   } catch (err) {
     console.error(err);
@@ -47,7 +47,17 @@ export const login = async (req, res) => {
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, email: user.email, full_name: user.full_name } });
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        full_name: user.full_name,
+        department_id: user.department_id,
+        designation: user.designation,
+        avatar_url: user.avatar_url,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

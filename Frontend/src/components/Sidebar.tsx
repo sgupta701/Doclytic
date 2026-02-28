@@ -36,7 +36,7 @@ export default function Sidebar() {
     { icon: Users, label: "HR", path: "/department/hr", color: "#10B981" },
     { icon: DollarSign, label: "Finance", path: "/department/finance", color: "#3B82F6" },
     { icon: Scale, label: "Legal", path: "/department/legal", color: "#8B5CF6" },
-    { icon: Briefcase, label: "Admin", path: "/department/admin", color: "#F59E0B" },
+    { icon: Briefcase, label: "Operations", path: "/department/operations", color: "#F59E0B" },
     { icon: ShoppingCart, label: "Procurement", path: "/department/procurement", color: "#EF4444" },
   ];
 

@@ -80,8 +80,9 @@ def _resolve_department(predicted_label: str, probability: float):
     """Determines department based on label and confidence threshold."""
     if probability < CONFIDENCE_THRESHOLD:
         return None, "low_confidence_below_threshold"
-    
-    department = ROUTING_RULES.get(predicted_label)
+
+    normalized_label = (predicted_label or "").strip().lower()
+    department = ROUTING_RULES.get(normalized_label)
     if not department:
         return None, "unmapped_label"
     
@@ -237,6 +238,53 @@ async def summarize_batch(files: List[UploadFile] = File(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Integration error: {str(e)}")
+
+@app.post("/classify-summarize")
+async def classify_and_summarize(file: UploadFile = File(...)):
+    """
+    Classification + summary endpoint WITHOUT email dispatch/storage routing side-effects.
+    Used for Gmail-fetched files that should only appear under department pages.
+    """
+    try:
+        raw_bytes = await file.read()
+        text = extract_text_from_file(raw_bytes, file.filename)
+
+        if not text or text.strip() == "":
+            return JSONResponse(
+                {"error": "Could not extract text.", "file": file.filename},
+                status_code=422,
+            )
+
+        predicted_label, probability = classify_text(text)
+        summary = generate_summary(text)
+        department, note = _resolve_department(predicted_label, probability)
+        route_to = department if department else "manual_review"
+
+        return {
+            "status": "processed",
+            "filename": file.filename,
+            "classification": {
+                "label": predicted_label,
+                "confidence": probability,
+            },
+            "summary": summary,
+            "actions": {
+                "email": {
+                    "route_to": route_to,
+                    "emails": [],
+                    "note": "skipped_for_gmail_fetch",
+                },
+                "storage": {
+                    "route_to": route_to,
+                    "note": note,
+                },
+            },
+        }
+    except Exception as e:
+        return JSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=500,
+        )
 
 @app.post("/ingest")
 async def ingest_and_route(file: UploadFile = File(...)):

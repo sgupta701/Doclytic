@@ -1,0 +1,7 @@
+Document: 1772125622687-1772124997790-1772124865279-1771650815095-sample_report.pdf
+Label   : report
+Confidence: 0.58
+Department: Operations
+
+=== SUMMARY ===
+This document states that company's quarterly report summarizes monthly KPIs, financial performance, operational metrics, and identifiedrisks for management review. The report also includes customer satisfaction, operational performance and revenue growth. The company is experiencing a difficult year on the road to recovery.

@@ -1,0 +1,7 @@
+Document: 1772124867927-sample_invoice.pdf
+Label   : invoice
+Confidence: 0.63
+Department: Finance
+
+=== SUMMARY ===
+This document states that Inventor ACME Pvt Ltd. viant ACME pvt.viant ACme Pvt. Ltd. invoices invoiced invooice No. 1009.

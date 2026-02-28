@@ -5,6 +5,7 @@ const DocumentSchema = new mongoose.Schema({
   content: String,
   urgency: { type: String, enum: ["high", "medium", "low"], default: "medium" },
   department_id: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
+  routed_department: String,
   uploaded_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   file_url: String,
   metadata: Object

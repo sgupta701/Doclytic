@@ -80,6 +80,7 @@ export const googleCallback = async (req, res) => {
       id: user._id.toString(),
       email: user.email,
       full_name: user.full_name,
+      department_id: user.department_id || null,
       avatar_url: userinfo.picture || ""
     };
 
@@ -295,19 +296,71 @@ export const downloadMailFile = async (req, res) => {
 
 
 
+export const deleteMailFile = async (req, res) => {
+  try {
+    const userId = req.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const { id } = req.params;
+    const gfs = await getGFS();
+
+    const file = await mongoose.connection.db
+      .collection("mailUploads.files")
+      .findOne({ _id: new mongoose.Types.ObjectId(id) });
+
+    if (!file) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    if (file.metadata?.userId !== userId.toString()) {
+      return res.status(403).json({ message: "Access denied. This file does not belong to you." });
+    }
+
+    await gfs.delete(file._id);
+    res.json({ message: "File deleted successfully" });
+  } catch (err) {
+    console.error("❌ deleteMailFile error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const generateGmailSummary = async (req, res) => {
   try {
-    console.log("Route hit");
+    const userId = req.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
 
     const { fileId } = req.params;
-    const { summary } = req.body;
-    
+    const { summary, routedDepartment, linkedDocumentId } = req.body;
+
+    const file = await mongoose.connection.db
+      .collection("mailUploads.files")
+      .findOne({ _id: new mongoose.Types.ObjectId(fileId) });
+
+    if (!file) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    if (file.metadata?.userId !== userId.toString()) {
+      return res.status(403).json({ message: "Access denied. This file does not belong to you." });
+    }
+
+    const updateSet = { summary };
+    if (routedDepartment) {
+      updateSet["metadata.routedDepartment"] = routedDepartment;
+    }
+    if (linkedDocumentId) {
+      updateSet["metadata.linkedDocumentId"] = linkedDocumentId;
+    }
 
     const result = await mongoose.connection.db
       .collection("mailUploads.files")
       .updateOne(
-        { _id: new mongoose.Types.ObjectId(fileId) },
-        { $set: { summary} }
+        { _id: new mongoose.Types.ObjectId(fileId), "metadata.userId": userId.toString() },
+        { $set: updateSet }
       );
 
     console.log("Matched:", result.matchedCount);

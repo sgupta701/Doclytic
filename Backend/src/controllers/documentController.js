@@ -3,16 +3,32 @@ import Notification from '../models/Notification.js';
 import Document from '../models/Document.js';
 import DocumentPermission from '../models/DocumentPermission.js';
 import DocumentVersion from '../models/DocumentVersion.js';
+import User from '../models/User.js';
 import { uploadProvider, uploadToS3 } from '../utils/upload.js';
 import { sendNotification } from "../utils/sendNotification.js";
 
 import dotenv from 'dotenv';
 dotenv.config();
 
+const formatDocumentForClient = (doc) => {
+  const plain = doc?.toObject ? doc.toObject() : doc;
+  if (plain?.department_id && typeof plain.department_id === "object") {
+    plain.department = plain.department_id;
+  }
+  return plain;
+};
+
 export const createDocument = async (req, res) => {
   try {
+    const user = await User.findById(req.userId).select("department_id");
+    if (!user) return res.status(401).json({ message: "User not found" });
+
     const payload = req.body;
     payload.uploaded_by = req.userId;
+    // Default to uploader's department when department_id is not provided.
+    if (!payload.department_id && user.department_id) {
+      payload.department_id = user.department_id;
+    }
 
     if (req.file) {
       if (uploadProvider === 's3') {
@@ -48,7 +64,8 @@ export const createDocument = async (req, res) => {
       "success"
     );
 
-    res.json(doc);
+    const hydrated = await Document.findById(doc._id).populate('department_id', 'name color');
+    res.json(formatDocumentForClient(hydrated));
 
   } catch (err) {
     console.error(err);
@@ -60,13 +77,12 @@ export const createDocument = async (req, res) => {
 export const getDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const doc = await Document.findById(id).populate('uploaded_by', 'email full_name');
+    const doc = await Document.findById(id)
+      .populate('uploaded_by', 'email full_name')
+      .populate('department_id', 'name color');
     if (!doc) return res.status(404).json({ message: 'Document not found' });
 
-    const perm = await DocumentPermission.findOne({ document_id: id, user_id: req.userId });
-    if (!perm && doc.uploaded_by._id.toString() !== req.userId) return res.status(403).json({ message: 'Access denied' });
-
-    res.json(doc);
+    res.json(formatDocumentForClient(doc));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -75,9 +91,11 @@ export const getDocument = async (req, res) => {
 
 export const listDocuments = async (req, res) => {
   try {
-    const perms = await DocumentPermission.find({ user_id: req.userId }).distinct('document_id');
-    const docs = await Document.find({ $or: [{ _id: { $in: perms } }, { uploaded_by: req.userId }] }).sort({ createdAt: -1 });
-    res.json(docs);
+    const docs = await Document.find({})
+      .populate('department_id', 'name color')
+      .sort({ createdAt: -1 });
+
+    res.json(docs.map(formatDocumentForClient));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -87,17 +105,17 @@ export const listDocuments = async (req, res) => {
 export const updateDocument = async (req, res) => {
   try {
     const { id } = req.params;
-
     const doc = await Document.findById(id);
     if (!doc) return res.status(404).json({ message: "Not found" });
-
     const perm = await DocumentPermission.findOne({
       document_id: id,
       user_id: req.userId,
     });
+    const isUploader = doc.uploaded_by?.toString() === req.userId;
 
-    if (!perm && doc.uploaded_by.toString() !== req.userId)
+    if (!isUploader && !perm) {
       return res.status(403).json({ message: "Not allowed" });
+    }
 
     if (req.file) {
       if (uploadProvider === "s3") {
