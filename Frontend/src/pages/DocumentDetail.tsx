@@ -29,6 +29,7 @@ interface DocumentWithDetails {
   department?: { name?: string };
   file_url?: string;
   file_type?: string;
+  python_file_id?: string;
 }
 
 interface Comment {
@@ -360,6 +361,7 @@ export default function DocumentDetail() {
              <div className="bg-white rounded-xl shadow-sm border" style={{ height: "600px" }}>
   <DocumentViewer
     fileId={document._id}
+    pythonFileId={document.python_file_id}
     fileName={document.title}
     fileType={document.file_type}
     isGmailAttachment={false}

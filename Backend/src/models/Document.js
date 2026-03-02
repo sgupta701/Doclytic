@@ -8,6 +8,7 @@ const DocumentSchema = new mongoose.Schema({
   routed_department: String,
   uploaded_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   file_url: String,
+  python_file_id: String,
   metadata: Object
 }, { timestamps: true });
 

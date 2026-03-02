@@ -1,7 +1,0 @@
-Document: 1772125624720-1772124992718-sample_resume.pdf
-Label   : resume
-Confidence: 0.56
-Department: HR
-
-=== SUMMARY ===
-This document appears to be a resume for a professional profile. It highlights that Rahul Verma: B.Tech Computer Science, Python, Machine Learning, Machine learning, SQL, Docker, Docker and Python. He is a software intern at TechCorp. He has worked at Tech Corp for 6 months.

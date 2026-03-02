@@ -1,7 +1,0 @@
-Document: 1771650815095-sample_report.pdf
-Label   : report
-Confidence: 0.58
-Department: Admin
-
-=== SUMMARY ===
-This document states that company's quarterly report summarizes monthly KPIs, financial performance, operational metrics, and identifiedrisks for management review. The report also includes customer satisfaction, operational performance and revenue growth. The company is experiencing a difficult year on the road to recovery.

@@ -28,7 +28,8 @@ interface Department {
 
 interface DocumentWithDetails {
   _id: string;
-  file_url: string;
+  file_url?: string;
+  python_file_id?: string;
   title: string;
   summary: string;
   urgency: "high" | "medium" | "low";
@@ -64,7 +65,7 @@ interface IngestResponse {
   };
   actions?: {
     email?: { route_to?: string };
-    storage?: { route_to?: string };
+    storage?: { route_to?: string; stored_id?: string };
   };
 }
 
@@ -349,6 +350,7 @@ export default function Dashboard() {
           const aiData = await runClassifierAndSummarizer(file);
           const generatedSummary = aiData.summary || "AI could not generate a summary.";
           const routedDepartment = getRoutedDepartmentName(aiData);
+          const pythonFileId = aiData.actions?.storage?.stored_id;
           routedDepartmentToNavigate = routedDepartment;
           const deptList = await ensureDepartmentsLoaded();
           const routedDepartmentId = getDepartmentIdByName(routedDepartment, deptList);
@@ -359,6 +361,7 @@ export default function Dashboard() {
               summary: generatedSummary,
               ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
               ...(routedDepartment ? { routed_department: routedDepartment } : {}),
+              ...(pythonFileId ? { python_file_id: pythonFileId } : {}),
             }),
           });
         } catch (aiErr) {

@@ -1,7 +1,0 @@
-Document: 1772124871210-test_invoice.pdf
-Label   : invoice
-Confidence: 0.82
-Department: Finance
-
-=== SUMMARY ===
-This document states that In the U.S. India, we send a questionnaire to test your knowledge of our purchase of a laptop. The questionnaire was sent to the company by emailing the author. The product was purchased by ACME Pvt Ltd at a cost of $1,800.

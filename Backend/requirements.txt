@@ -16,3 +16,5 @@ torch
 PyMuPDF
 python-docx
 odfpy
+pymongo
+python-dotenv

@@ -1,7 +1,0 @@
-Document: 1772104567094-DSA_Topics_List.pdf
-Label   : resume
-Confidence: 0.44
-Department: manual_review
-
-=== SUMMARY ===
-This document states that book is written by Mark Allen and Mark Allen. The book includes a series of algorithms and techniques to help students understand how to use the book. The first book is published in the book "The Complete Texts of the Book"

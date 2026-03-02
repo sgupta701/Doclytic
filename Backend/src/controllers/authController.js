@@ -6,14 +6,25 @@ dotenv.config();
 
 export const register = async (req, res) => {
   try {
-    const { email, password, full_name } = req.body;
+    const { email, password, full_name, department_id, designation, contact, employee_id, avatar_url, responsibilities, working_hours } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: 'Email already in use' });
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashed, full_name });
+    const user = new User({ 
+      email, 
+      password: hashed, 
+      full_name,
+      department_id,
+      designation,
+      contact,
+      employee_id,
+      avatar_url,
+      responsibilities,
+      working_hours: working_hours || '9:00 AM - 5:00 PM'
+    });
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });

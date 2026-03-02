@@ -1,6 +1,0 @@
-Document: sample_report.pdf
-Label   : report
-Department: operations
-
-=== SUMMARY ===
-This report summarizes monthly KPIs, financial performance, operational metrics, and identifiedrisks for management review. MONTHLY PERFORMANCE REPORT: Revenue Growth 12%Customer Satisfaction 89%Operational Uptime 99.2%

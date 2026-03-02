@@ -1,6 +1,0 @@
-Document: sample_invoice.pdf
-Label   : invoice
-Department: finance
-
-=== SUMMARY ===
-Vendor ACME Pvt LtdTotal Amount n74,104. INVOICEInvoice No INV-1009 date 15-Dec-2025.

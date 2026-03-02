@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 interface DocumentViewerProps {
   fileUrl?: string;
   fileId?: string;
+  pythonFileId?: string;
   fileName?: string;
   fileType?: string;
   isGmailAttachment?: boolean;
@@ -14,6 +15,7 @@ interface DocumentViewerProps {
 
 const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api\/?$/, "");
 const API_URL = `${BASE_URL}/api`;
+const AI_BASE_URL = (import.meta.env.VITE_AI_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
 export async function authFetch(url: string, options: RequestInit = {}) {
   const token = localStorage.getItem("token");
@@ -33,6 +35,7 @@ export async function authFetch(url: string, options: RequestInit = {}) {
 export default function DocumentViewer({
   fileUrl,
   fileId,
+  pythonFileId,
   fileName = "document",
   fileType,
   isGmailAttachment = false,
@@ -52,7 +55,14 @@ export default function DocumentViewer({
         URL.revokeObjectURL(viewUrl);
       }
     };
-  }, [fileUrl, fileId]);
+  }, [fileUrl, fileId, pythonFileId]);
+
+  const getPythonBlobUrl = async (pyId: string) => {
+    const res = await fetch(`${AI_BASE_URL}/documents/${pyId}/download`);
+    if (!res.ok) throw new Error("Failed to fetch DB-backed file");
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  };
 
   // Process office files once viewUrl is ready
   useEffect(() => {
@@ -108,6 +118,12 @@ export default function DocumentViewer({
           const res = await authFetch(`${API_URL}/documents/${fileId}`);
           if (!res.ok) throw new Error("Failed to load document");
           const data = await res.json();
+          const resolvedPythonId = pythonFileId || data.python_file_id;
+          if (resolvedPythonId) {
+            const blobUrl = await getPythonBlobUrl(resolvedPythonId);
+            setViewUrl(blobUrl);
+            return;
+          }
           const url = data.file_url;
           if (!url) throw new Error("No file URL returned from server");
           setViewUrl(url.startsWith("http") ? url : `${BASE_URL}${url}`);
@@ -136,8 +152,13 @@ export default function DocumentViewer({
         } else {
           const res = await authFetch(`${API_URL}/documents/${fileId}`);
           const data = await res.json();
-          const raw = data.file_url;
-          downloadUrl = raw.startsWith("http") ? raw : `${BASE_URL}${raw}`;
+          const resolvedPythonId = pythonFileId || data.python_file_id;
+          if (resolvedPythonId) {
+            downloadUrl = await getPythonBlobUrl(resolvedPythonId);
+          } else {
+            const raw = data.file_url;
+            downloadUrl = raw.startsWith("http") ? raw : `${BASE_URL}${raw}`;
+          }
         }
         const a = document.createElement("a");
         a.href = downloadUrl;
