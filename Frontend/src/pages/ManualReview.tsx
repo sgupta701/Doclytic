@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, FileText } from "lucide-react";
 import DashboardLayout from "../components/DashboardLayout";
+import { triggerTabPulse } from "../utils/tabPulse";
 
 interface Department {
   _id: string;
@@ -56,6 +57,8 @@ export default function ManualReview() {
 
   const normalizeName = (value?: string) =>
     (value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const toDepartmentSlug = (departmentName: string) =>
+    departmentName.trim().toLowerCase().replace(/\s+/g, "-");
 
   const getDeptIdByName = (name?: string | null, sourceDepartments: Department[] = departments) => {
     const wanted = normalizeName(name || "");
@@ -166,6 +169,8 @@ export default function ManualReview() {
           throw new Error(pyText || "Failed to sync Python GridFS metadata");
         }
       }
+
+      triggerTabPulse(`/department/${toDepartmentSlug(chosen.name)}`);
 
       setDocuments((prev) => prev.filter((d) => d._id !== doc._id));
     } catch (error) {

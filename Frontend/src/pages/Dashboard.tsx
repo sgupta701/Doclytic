@@ -19,6 +19,7 @@ import {
 
 import DashboardLayout from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
+import { triggerTabPulse } from "../utils/tabPulse";
 
 interface Department {
   _id: string;
@@ -262,6 +263,17 @@ export default function Dashboard() {
   const toDepartmentSlug = (departmentName: string) =>
     departmentName.trim().toLowerCase().replace(/\s+/g, "-");
 
+  const pulseRouteTab = (routeName?: string | null) => {
+    if (!routeName) return;
+    const normalized = routeName.trim().toLowerCase();
+    if (!normalized) return;
+    if (normalized === "manual_review") {
+      triggerTabPulse("/manual-review");
+      return;
+    }
+    triggerTabPulse(`/department/${toDepartmentSlug(routeName)}`);
+  };
+
   const processGmailFileWithAI = async (file: GmailFile) => {
     try {
       const res = await authFetch(`${API_URL}/api/mail/download/${file._id}`);
@@ -358,6 +370,8 @@ export default function Dashboard() {
         throw new Error(`Failed to save Gmail summary: ${err}`);
       }
 
+      pulseRouteTab(needsManualReview ? "manual_review" : routedDepartment);
+
       setGmailFiles((prev) =>
         prev.map((f) =>
           f._id === file._id
@@ -401,16 +415,16 @@ export default function Dashboard() {
 
         try {
           const aiData = await runClassifierAndSummarizer(file);
-      const generatedSummary = aiData.summary || "AI could not generate a summary.";
-      const routedDepartment = getRoutedDepartmentName(aiData);
-      const needsManualReview = isManualReviewRequired(aiData);
+          const generatedSummary = aiData.summary || "AI could not generate a summary.";
+          const routedDepartment = getRoutedDepartmentName(aiData);
+          const needsManualReview = isManualReviewRequired(aiData);
       const suggestedDepartment = getSuggestedDepartmentFromLabel(aiData.classification?.label);
       const pythonFileId = aiData.actions?.storage?.stored_id;
       routedDepartmentToNavigate = routedDepartment;
       const deptList = await ensureDepartmentsLoaded();
       const routedDepartmentId = getDepartmentIdByName(routedDepartment, deptList);
 
-      await authFetch(`${API_URL}/api/documents/${uploadedDoc._id}`, {
+          await authFetch(`${API_URL}/api/documents/${uploadedDoc._id}`, {
         method: "PUT",
         body: JSON.stringify({
           summary: generatedSummary,
@@ -432,7 +446,9 @@ export default function Dashboard() {
               }
             : {}),
         }),
-      });
+          });
+
+          pulseRouteTab(needsManualReview ? "manual_review" : routedDepartment);
         } catch (aiErr) {
           console.error("Auto classifier+summarizer failed after upload:", aiErr);
         }
