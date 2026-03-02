@@ -217,6 +217,25 @@ export default function Dashboard() {
     return routedName;
   };
 
+  const isManualReviewRequired = (aiData: IngestResponse): boolean => {
+    const routedName = (aiData.actions?.email?.route_to || aiData.actions?.storage?.route_to || "").toLowerCase();
+    return routedName === "manual_review";
+  };
+
+  const getSuggestedDepartmentFromLabel = (label?: string): string | null => {
+    const key = (label || "").trim().toLowerCase();
+    const suggestionMap: Record<string, string> = {
+      invoice: "Finance",
+      contract: "Legal",
+      resume: "HR",
+      report: "Operations",
+      purchase_order: "Procurement",
+      quotation: "Procurement",
+      rfq: "Procurement",
+    };
+    return suggestionMap[key] || null;
+  };
+
   const getDepartmentIdByName = (
     departmentName: string | null,
     departmentList: Department[] = departments
@@ -253,6 +272,8 @@ export default function Dashboard() {
       const aiData = await runClassifierAndSummarizerNoMail(uploadFile);
       const generatedSummary = aiData.summary || "AI could not generate a summary.";
       const routedDepartment = getRoutedDepartmentName(aiData);
+      const needsManualReview = isManualReviewRequired(aiData);
+      const suggestedDepartment = getSuggestedDepartmentFromLabel(aiData.classification?.label);
       const deptList = await ensureDepartmentsLoaded();
       const routedDepartmentId = getDepartmentIdByName(routedDepartment, deptList);
 
@@ -264,8 +285,22 @@ export default function Dashboard() {
           method: "PUT",
           body: JSON.stringify({
             summary: generatedSummary,
+            ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
             ...(routedDepartment ? { routed_department: routedDepartment } : {}),
             ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
+            ...(needsManualReview
+              ? {
+                  metadata: {
+                    manual_review: {
+                      required: true,
+                      status: "pending",
+                      suggested_department: suggestedDepartment,
+                      predicted_label: aiData.classification?.label || "",
+                      confidence: aiData.classification?.confidence ?? 0,
+                    },
+                  },
+                }
+              : {}),
           }),
         });
       } else {
@@ -274,6 +309,7 @@ export default function Dashboard() {
         createFormData.append("file", uploadFile);
         createFormData.append("title", file.filename.replace(/\.[^/.]+$/, ""));
         createFormData.append("summary", generatedSummary);
+        if (needsManualReview) createFormData.append("routed_department", "manual_review");
         if (routedDepartmentId) createFormData.append("department_id", routedDepartmentId);
         if (routedDepartment) createFormData.append("routed_department", routedDepartment);
 
@@ -285,6 +321,23 @@ export default function Dashboard() {
         if (createDocRes.ok) {
           const createdDoc = await createDocRes.json();
           linkedDocumentId = createdDoc?._id;
+          if (linkedDocumentId && needsManualReview) {
+            await authFetch(`${API_URL}/api/documents/${linkedDocumentId}`, {
+              method: "PUT",
+              body: JSON.stringify({
+                department_id: null,
+                metadata: {
+                  manual_review: {
+                    required: true,
+                    status: "pending",
+                    suggested_department: suggestedDepartment,
+                    predicted_label: aiData.classification?.label || "",
+                    confidence: aiData.classification?.confidence ?? 0,
+                  },
+                },
+              }),
+            });
+          }
         }
       }
 
@@ -348,22 +401,38 @@ export default function Dashboard() {
 
         try {
           const aiData = await runClassifierAndSummarizer(file);
-          const generatedSummary = aiData.summary || "AI could not generate a summary.";
-          const routedDepartment = getRoutedDepartmentName(aiData);
-          const pythonFileId = aiData.actions?.storage?.stored_id;
-          routedDepartmentToNavigate = routedDepartment;
-          const deptList = await ensureDepartmentsLoaded();
-          const routedDepartmentId = getDepartmentIdByName(routedDepartment, deptList);
+      const generatedSummary = aiData.summary || "AI could not generate a summary.";
+      const routedDepartment = getRoutedDepartmentName(aiData);
+      const needsManualReview = isManualReviewRequired(aiData);
+      const suggestedDepartment = getSuggestedDepartmentFromLabel(aiData.classification?.label);
+      const pythonFileId = aiData.actions?.storage?.stored_id;
+      routedDepartmentToNavigate = routedDepartment;
+      const deptList = await ensureDepartmentsLoaded();
+      const routedDepartmentId = getDepartmentIdByName(routedDepartment, deptList);
 
-          await authFetch(`${API_URL}/api/documents/${uploadedDoc._id}`, {
-            method: "PUT",
-            body: JSON.stringify({
-              summary: generatedSummary,
-              ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
-              ...(routedDepartment ? { routed_department: routedDepartment } : {}),
-              ...(pythonFileId ? { python_file_id: pythonFileId } : {}),
-            }),
-          });
+      await authFetch(`${API_URL}/api/documents/${uploadedDoc._id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          summary: generatedSummary,
+          ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
+          ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
+          ...(routedDepartment ? { routed_department: routedDepartment } : {}),
+          ...(pythonFileId ? { python_file_id: pythonFileId } : {}),
+          ...(needsManualReview
+            ? {
+                metadata: {
+                  manual_review: {
+                    required: true,
+                    status: "pending",
+                    suggested_department: suggestedDepartment,
+                    predicted_label: aiData.classification?.label || "",
+                    confidence: aiData.classification?.confidence ?? 0,
+                  },
+                },
+              }
+            : {}),
+        }),
+      });
         } catch (aiErr) {
           console.error("Auto classifier+summarizer failed after upload:", aiErr);
         }

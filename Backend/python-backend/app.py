@@ -9,6 +9,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from gridfs import GridFSBucket
+from pydantic import BaseModel
 from pymongo import DESCENDING, MongoClient
 from pymongo.uri_parser import parse_uri
 from dotenv import load_dotenv
@@ -42,6 +43,12 @@ DOC_FILES_COLLECTION = f"{DOC_BUCKET_NAME}.files"
 mongo_client: Optional[MongoClient] = None
 mongo_db = None
 doc_bucket: Optional[GridFSBucket] = None
+
+
+class RouteUpdateRequest(BaseModel):
+    route_to: str
+    note: Optional[str] = None
+    decided_by: Optional[str] = None
 
 try:
     clf = joblib.load(MODEL_PATH)
@@ -355,6 +362,46 @@ def get_document_metadata(document_id: str):
             "length": d.get("length"),
             "uploadDate": d.get("uploadDate"),
             "metadata": d.get("metadata", {}),
+        }
+    except InvalidId:
+        return JSONResponse({"message": "Invalid document id"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.patch("/documents/{document_id}/route")
+def update_document_route(document_id: str, payload: RouteUpdateRequest):
+    """Update routed department metadata for an existing GridFS file."""
+    try:
+        _ensure_db()
+        oid = ObjectId(document_id)
+        route_to = (payload.route_to or "").strip()
+        if not route_to:
+            return JSONResponse({"message": "route_to is required"}, status_code=400)
+
+        existing = mongo_db[DOC_FILES_COLLECTION].find_one({"_id": oid})
+        if not existing:
+            return JSONResponse({"message": "Document not found"}, status_code=404)
+
+        update_ops = {
+            "metadata.route_to": route_to,
+            "metadata.note": payload.note or "routed_by_manual_review",
+            "metadata.manual_review.status": "resolved",
+            "metadata.manual_review.decided_department": route_to,
+            "metadata.manual_review.decided_at": datetime.now(timezone.utc),
+        }
+        if payload.decided_by:
+            update_ops["metadata.manual_review.decided_by"] = payload.decided_by
+
+        mongo_db[DOC_FILES_COLLECTION].update_one({"_id": oid}, {"$set": update_ops})
+
+        updated = mongo_db[DOC_FILES_COLLECTION].find_one({"_id": oid})
+        return {
+            "id": str(updated["_id"]),
+            "filename": updated.get("filename"),
+            "route_to": updated.get("metadata", {}).get("route_to"),
+            "note": updated.get("metadata", {}).get("note"),
+            "manual_review": updated.get("metadata", {}).get("manual_review", {}),
         }
     except InvalidId:
         return JSONResponse({"message": "Invalid document id"}, status_code=400)

@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   LogOut,
+  AlertTriangle,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -30,6 +31,7 @@ export default function Sidebar() {
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Calendar, label: "Compliance Calendar", path: "/calendar" },
+    { icon: AlertTriangle, label: "Manual Review", path: "/manual-review" },
   ];
 
   const departmentItems = [
