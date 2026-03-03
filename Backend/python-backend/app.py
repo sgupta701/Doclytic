@@ -9,11 +9,11 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from gridfs import GridFSBucket
+from pydantic import BaseModel
 from pymongo import DESCENDING, MongoClient
 from pymongo.uri_parser import parse_uri
 from dotenv import load_dotenv
 
-from config.departments import DEPARTMENT_EMAILS
 from config.routing_rules import ROUTING_RULES
 from summarizer import extract_text_from_file, generate_integrated_summary, generate_summary
 from utils.email_sender import send_document_email_bytes
@@ -42,6 +42,21 @@ DOC_FILES_COLLECTION = f"{DOC_BUCKET_NAME}.files"
 mongo_client: Optional[MongoClient] = None
 mongo_db = None
 doc_bucket: Optional[GridFSBucket] = None
+
+
+class RouteUpdateRequest(BaseModel):
+    route_to: str
+    note: Optional[str] = None
+    decided_by: Optional[str] = None
+
+
+class SummaryItem(BaseModel):
+    title: str
+    summary: str
+
+
+class IntegratedSummaryRequest(BaseModel):
+    documents: List[SummaryItem]
 
 try:
     clf = joblib.load(MODEL_PATH)
@@ -96,6 +111,39 @@ def _ensure_db():
     mongo_db[DOC_FILES_COLLECTION].create_index([("metadata.route_to", 1), ("uploadDate", DESCENDING)])
 
 
+def _get_department_emails_from_db(department_name: str) -> List[str]:
+    """Resolve recipient emails for a routed department from MongoDB."""
+    _ensure_db()
+
+    department = mongo_db["departments"].find_one(
+        {"name": {"$regex": f"^{department_name.strip()}$", "$options": "i"}},
+        {"_id": 1},
+    )
+    if not department:
+        return []
+
+    cursor = mongo_db["users"].find(
+        {
+            "department_id": department["_id"],
+            "email": {"$exists": True, "$type": "string", "$ne": ""},
+        },
+        {"email": 1, "_id": 0},
+    )
+
+    emails = []
+    seen = set()
+    for row in cursor:
+        email = (row.get("email") or "").strip()
+        if not email:
+            continue
+        lower = email.lower()
+        if lower in seen:
+            continue
+        seen.add(lower)
+        emails.append(email)
+    return emails
+
+
 def route_and_send_email(
     predicted_label: str,
     filename: str,
@@ -108,9 +156,9 @@ def route_and_send_email(
     if department is None:
         return {"route_to": "manual_review", "emails": [], "note": note}
 
-    emails = DEPARTMENT_EMAILS.get(department)
+    emails = _get_department_emails_from_db(department)
     if not emails:
-        return {"route_to": "manual_review", "emails": [], "note": "no_emails_configured"}
+        return {"route_to": "manual_review", "emails": [], "note": "no_department_users_found"}
 
     subject = f"New Document Routed: {predicted_label}"
     body = (
@@ -214,6 +262,17 @@ async def summarize_batch(files: List[UploadFile] = File(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Integration error: {str(e)}")
+
+
+@app.post("/summarize-integrated")
+def summarize_integrated(payload: IntegratedSummaryRequest):
+    """Create one combined summary from pre-summarized documents."""
+    items = [
+        {"title": (d.title or "").strip(), "summary": (d.summary or "").strip()}
+        for d in payload.documents
+        if (d.title or "").strip() and (d.summary or "").strip()
+    ]
+    return {"summary": generate_integrated_summary(items)}
 
 
 @app.post("/classify-summarize")
@@ -355,6 +414,46 @@ def get_document_metadata(document_id: str):
             "length": d.get("length"),
             "uploadDate": d.get("uploadDate"),
             "metadata": d.get("metadata", {}),
+        }
+    except InvalidId:
+        return JSONResponse({"message": "Invalid document id"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.patch("/documents/{document_id}/route")
+def update_document_route(document_id: str, payload: RouteUpdateRequest):
+    """Update routed department metadata for an existing GridFS file."""
+    try:
+        _ensure_db()
+        oid = ObjectId(document_id)
+        route_to = (payload.route_to or "").strip()
+        if not route_to:
+            return JSONResponse({"message": "route_to is required"}, status_code=400)
+
+        existing = mongo_db[DOC_FILES_COLLECTION].find_one({"_id": oid})
+        if not existing:
+            return JSONResponse({"message": "Document not found"}, status_code=404)
+
+        update_ops = {
+            "metadata.route_to": route_to,
+            "metadata.note": payload.note or "routed_by_manual_review",
+            "metadata.manual_review.status": "resolved",
+            "metadata.manual_review.decided_department": route_to,
+            "metadata.manual_review.decided_at": datetime.now(timezone.utc),
+        }
+        if payload.decided_by:
+            update_ops["metadata.manual_review.decided_by"] = payload.decided_by
+
+        mongo_db[DOC_FILES_COLLECTION].update_one({"_id": oid}, {"$set": update_ops})
+
+        updated = mongo_db[DOC_FILES_COLLECTION].find_one({"_id": oid})
+        return {
+            "id": str(updated["_id"]),
+            "filename": updated.get("filename"),
+            "route_to": updated.get("metadata", {}).get("route_to"),
+            "note": updated.get("metadata", {}).get("note"),
+            "manual_review": updated.get("metadata", {}).get("manual_review", {}),
         }
     except InvalidId:
         return JSONResponse({"message": "Invalid document id"}, status_code=400)

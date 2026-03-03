@@ -10,6 +10,7 @@ import DocumentUpload from './pages/DocumentUpload';
 import GmailDocument from './pages/GmailDocument';
 import ComplianceCalendar from './components/ComplianceCalendar.tsx';
 import DepartmentDocuments from './pages/DepartmentDocuments';
+import ManualReview from './pages/ManualReview';
 
 function App() {
   return (
@@ -74,6 +75,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DepartmentDocuments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manual-review"
+            element={
+              <ProtectedRoute>
+                <ManualReview />
               </ProtectedRoute>
             }
           />

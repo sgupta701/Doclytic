@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Calendar,
@@ -11,13 +11,16 @@ import {
   Menu,
   X,
   LogOut,
+  AlertTriangle,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { TAB_PULSE_EVENT } from "../utils/tabPulse";
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [tabPulseUntil, setTabPulseUntil] = useState<Record<string, number>>({});
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,6 +33,7 @@ export default function Sidebar() {
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Calendar, label: "Compliance Calendar", path: "/calendar" },
+    { icon: AlertTriangle, label: "Manual Review", path: "/manual-review" },
   ];
 
   const departmentItems = [
@@ -40,9 +44,41 @@ export default function Sidebar() {
     { icon: ShoppingCart, label: "Procurement", path: "/department/procurement", color: "#EF4444" },
   ];
 
+  useEffect(() => {
+    const handlePulse = (evt: Event) => {
+      const custom = evt as CustomEvent<{ path?: string; durationMs?: number }>;
+      const path = custom.detail?.path;
+      const durationMs = custom.detail?.durationMs ?? 5000;
+      if (!path) return;
+      setTabPulseUntil((prev) => ({ ...prev, [path]: Date.now() + durationMs }));
+    };
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setTabPulseUntil((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const [path, until] of Object.entries(prev)) {
+          if (until <= now) {
+            delete next[path];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 500);
+
+    window.addEventListener(TAB_PULSE_EVENT, handlePulse as EventListener);
+    return () => {
+      window.removeEventListener(TAB_PULSE_EVENT, handlePulse as EventListener);
+      clearInterval(timer);
+    };
+  }, []);
+
   const NavItem = ({ item }: any) => {
     const Icon = item.icon;
     const active = isActiveRoute(item.path);
+    const showPulse = (tabPulseUntil[item.path] || 0) > Date.now();
 
     return (
       <button
@@ -63,9 +99,14 @@ export default function Sidebar() {
         />
 
         {!collapsed && (
-          <span className="text-sm font-medium tracking-wide">
+          <span className="text-sm font-medium tracking-wide flex items-center gap-2">
             {item.label}
+            {showPulse && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
           </span>
+        )}
+
+        {collapsed && showPulse && (
+          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
         )}
 
         {active && (
