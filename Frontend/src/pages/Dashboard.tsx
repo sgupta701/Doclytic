@@ -71,6 +71,11 @@ interface GmailFile {
   };
   summary?: string;
   urgency?: "high" | "medium" | "low";
+  priority?: {
+    priority_score?: number;
+    priority_level?: "Low" | "Medium" | "High" | "Critical";
+  } | null;
+  detectedDepartment?: string;
 }
 
 interface IngestResponse {
@@ -438,7 +443,8 @@ export default function Dashboard() {
         // Create a normal document entry for every gmail attachment so it can appear in department pages.
         const createFormData = new FormData();
         createFormData.append("file", uploadFile);
-        createFormData.append("title", file.filename.replace(/\.[^/.]+$/, ""));
+        const cleanedFilename = getDisplayFilename(file.filename);
+        createFormData.append("title", cleanedFilename.replace(/\.[^/.]+$/, ""));
         createFormData.append("summary", generatedSummary);
         if (needsManualReview) createFormData.append("routed_department", "manual_review");
         if (routedDepartmentId) createFormData.append("department_id", routedDepartmentId);
@@ -504,6 +510,8 @@ export default function Dashboard() {
             ? {
                 ...f,
                 summary: generatedSummary,
+                priority: aiData.priority || f.priority || null,
+                detectedDepartment: routedDepartment || f.detectedDepartment,
                 metadata: {
                   ...(f.metadata || ({} as GmailFile["metadata"])),
                   routedDepartment: routedDepartment || undefined,
@@ -707,8 +715,41 @@ export default function Dashboard() {
       const files = await res.json();
       console.log("📧 Gmail files loaded:", files);
       const normalizedFiles = Array.isArray(files) ? files : files.data || [];
-      setGmailFiles(normalizedFiles);
-      return normalizedFiles;
+      const enrichedFiles = await Promise.all(
+        normalizedFiles.map(async (file: GmailFile) => {
+          const linkedDocumentId = file.metadata?.linkedDocumentId;
+          if (!linkedDocumentId) return file;
+
+          try {
+            const docRes = await authFetch(`${API_URL}/api/documents/${linkedDocumentId}`);
+            if (!docRes.ok) return file;
+            const linkedDoc = await docRes.json();
+
+            const detectedDepartment = (
+              linkedDoc?.routed_department ||
+              linkedDoc?.department?.name ||
+              file.metadata?.routedDepartment ||
+              ""
+            ).trim();
+
+            return {
+              ...file,
+              priority: linkedDoc?.priority || file.priority || null,
+              detectedDepartment: detectedDepartment || file.detectedDepartment,
+              metadata: {
+                ...(file.metadata || {}),
+                routedDepartment:
+                  detectedDepartment || file.metadata?.routedDepartment || undefined,
+              },
+            };
+          } catch {
+            return file;
+          }
+        })
+      );
+
+      setGmailFiles(enrichedFiles);
+      return enrichedFiles;
     } catch (e) {
       console.error("Gmail fetch error:", e);
       setGmailFiles([]);
@@ -783,23 +824,15 @@ export default function Dashboard() {
     }
   };
 
-  const getUrgencyColor = (u: string) =>
-    ({
-      high: "bg-red-100 text-red-800 border-red-200",
-      medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      low: "bg-green-100 text-green-800 border-green-200",
-      unscored: "bg-slate-100 text-slate-700 border-slate-200",
-    }[u] || "");
-
-  const getGmailUrgencyLabel = (file: GmailFile): "high" | "medium" | "low" | "unscored" => {
-    const raw = (file.urgency || "").toLowerCase();
-    if (raw === "high" || raw === "medium" || raw === "low") return raw;
-    return "unscored";
+  const getGmailDepartmentLabel = (file: GmailFile): string => {
+    const routed = (file.detectedDepartment || file.metadata?.routedDepartment || "").trim();
+    return routed || "Unrouted";
   };
 
-  const getGmailDepartmentLabel = (file: GmailFile): string => {
-    const routed = (file.metadata?.routedDepartment || "").trim();
-    return routed || "Unrouted";
+  const getGmailPriorityScore = (file: GmailFile): string => {
+    const score = file.priority?.priority_score;
+    if (typeof score !== "number" || Number.isNaN(score)) return "N/A";
+    return score.toFixed(1);
   };
 
   const getDepartmentBadgeStyle = (departmentName?: string) => {
@@ -838,6 +871,8 @@ export default function Dashboard() {
     return icons[name] || Briefcase;
   };
 
+  const getDisplayFilename = (name: string) => name.replace(/^\d{10,}[-_]+/, "");
+
   // Filter documents based on search query and selected department
   const currentUserId = profile?.id || (profile as any)?._id;
   const filteredDocuments = Array.isArray(documents)
@@ -861,6 +896,9 @@ export default function Dashboard() {
         return matchesSearch && matchesDepartment;
       })
     : [];
+  const sortedDocuments = [...filteredDocuments].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   // Filter Gmail files based on search query
   const filteredGmailFiles = Array.isArray(gmailFiles)
@@ -869,11 +907,15 @@ export default function Dashboard() {
         const query = searchQuery.toLowerCase();
         return (
           file.filename.toLowerCase().includes(query) ||
+          getDisplayFilename(file.filename).toLowerCase().includes(query) ||
           file.metadata?.subject?.toLowerCase().includes(query) ||
           file.metadata?.from?.toLowerCase().includes(query)
         );
       })
     : [];
+  const sortedGmailFiles = [...filteredGmailFiles].sort(
+    (a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
+  );
 
   // Show loading while auth is initializing
   if (authLoading) {
@@ -1037,70 +1079,72 @@ export default function Dashboard() {
 
           {loading ? (
             <div className="py-16 text-center text-gray-500">Loading...</div>
-          ) : filteredDocuments.length === 0 ? (
+          ) : sortedDocuments.length === 0 ? (
             <div className="py-16 text-center"><FileText className="w-12 h-12 mx-auto text-gray-300 mb-4" /><p className="text-gray-500 text-lg">No documents found.</p></div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredDocuments.map((doc) => (
-                <div
-                  key={doc._id}
-                  onClick={() => navigate(`/document/${doc._id}`)}
-                  className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex justify-between mb-4">
-                      <h3 className="font-semibold text-gray-800 group-hover:text-blue-600 transition line-clamp-1">{doc.title}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs border ${getPriorityColor(doc.priority?.priority_level)}`}>
-                          {doc.priority?.priority_level || "Unscored"}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteDocument(doc._id);
-                          }}
-                          className="p-1 text-gray-400 hover:text-red-500 transition"
-                          title="Delete document"
-                          aria-label="Delete document"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+            <div className="h-[36.5rem] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {sortedDocuments.map((doc) => (
+                  <div
+                    key={doc._id}
+                    onClick={() => navigate(`/document/${doc._id}`)}
+                    className="group h-[17.5rem] bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex justify-between mb-4">
+                        <h3 className="font-semibold text-gray-800 group-hover:text-blue-600 transition line-clamp-1">{getDisplayFilename(doc.title)}</h3>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs border ${getPriorityColor(doc.priority?.priority_level)}`}>
+                            {doc.priority?.priority_level || "Unscored"}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDocument(doc._id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 transition"
+                            title="Delete document"
+                            aria-label="Delete document"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-sm text-gray-500 line-clamp-3 mb-4">{doc.summary}</p>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs text-gray-400 items-center mb-4">
-                      <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
-                      {doc.department && (
-                        <span className="px-3 py-1 rounded-full text-xs" style={{ backgroundColor: `${doc.department.color}15`, color: doc.department.color }}>
-                          {doc.department.name}
-                        </span>
-                      )}
+                      <p className="text-sm text-gray-500 line-clamp-3 mb-4">{doc.summary}</p>
                     </div>
 
                     <div>
-                      {/* AI SUMMARY BUTTON */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevents navigating to details page
-                          if (doc.file_url) handleGenerateSummary(doc._id, doc.file_url);
-                        }}
-                        disabled={summarizingId === doc._id}
-                        className="w-full py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center justify-center gap-2 border border-blue-100"
-                      >
-                        {summarizingId === doc._id ? (
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-3 h-3" />
+                      <div className="flex justify-between text-xs text-gray-400 items-center mb-4">
+                        <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
+                        {doc.department && (
+                          <span className="px-3 py-1 rounded-full text-xs" style={{ backgroundColor: `${doc.department.color}15`, color: doc.department.color }}>
+                            {doc.department.name}
+                          </span>
                         )}
-                        {summarizingId === doc._id ? "Summarizing..." : "AI Summary"}
-                      </button>
+                      </div>
+
+                      <div>
+                        {/* AI SUMMARY BUTTON */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevents navigating to details page
+                            if (doc.file_url) handleGenerateSummary(doc._id, doc.file_url);
+                          }}
+                          disabled={summarizingId === doc._id}
+                          className="w-full py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center justify-center gap-2 border border-blue-100"
+                        >
+                          {summarizingId === doc._id ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3 h-3" />
+                          )}
+                          {summarizingId === doc._id ? "Summarizing..." : "AI Summary"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1150,7 +1194,7 @@ export default function Dashboard() {
 
         {gmailLoading ? (
           <div className="py-16 text-center text-gray-500">Loading...</div>
-        ) : filteredGmailFiles.length === 0 ? (
+        ) : sortedGmailFiles.length === 0 ? (
           <div className="py-16 text-center">
             <Mail className="w-12 h-12 mx-auto text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg">
@@ -1158,72 +1202,76 @@ export default function Dashboard() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredGmailFiles.map((file) => (
-              <div
-                key={file._id}
-                onClick={() => navigate(`/gmail-document/${file._id}`)}
-                className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
-              >
-                <div>
-                    <div className="flex justify-between mb-4">
-                      <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 transition line-clamp-1">{file.filename}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs border ${getUrgencyColor(getGmailUrgencyLabel(file))}`}>
-                          {getGmailUrgencyLabel(file)}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteGmailFile(file._id);
-                          }}
-                          className="p-1 text-gray-400 hover:text-red-500 transition"
-                          title="Delete attachment"
-                          aria-label="Delete attachment"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+          <div className="h-[36.5rem] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {sortedGmailFiles.map((file) => (
+                <div
+                  key={file._id}
+                  onClick={() => navigate(`/gmail-document/${file._id}`)}
+                  className="group h-[17.5rem] bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+                >
+                  <div>
+                      <div className="flex justify-between mb-4">
+                        <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 transition line-clamp-1">{getDisplayFilename(file.filename)}</h3>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs border ${getPriorityColor(file.priority?.priority_level)}`}>
+                            {file.priority?.priority_level || "Unscored"}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteGmailFile(file._id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 transition"
+                            title="Delete attachment"
+                            aria-label="Delete attachment"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    {/* {file.metadata?.subject && <p className="text-sm text-gray-500 line-clamp-2 mb-4">{file.metadata.subject}</p>} */}
-                    
-                    {file.summary && (
-                      <p className="text-sm text-gray-500 line-clamp-3 mb-4">
-                        {/* <Sparkles className="w-3 h-3 inline mr-1 text-purple-500"/>  */}
-                        {file.summary}
-                      </p>
-                    )}
-                  </div>
-
-                <div>
-                    <div className="flex justify-between text-xs text-gray-400 items-center mb-4">
-                      <span>{new Date(file.uploadDate).toLocaleDateString()}</span>
-                      <span
-                        className="px-3 py-1 rounded-full text-xs"
-                        style={getDepartmentBadgeStyle(getGmailDepartmentLabel(file))}
-                      >
-                        {getGmailDepartmentLabel(file)}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleGenerateGmailSummary(file._id, file.filename);
-                      }}
-                      disabled={gmailSummarizingId === file._id}
-                      className="w-full py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition flex items-center justify-center gap-2 border border-indigo-100"
-                    >
-                      {gmailSummarizingId === file._id ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3 h-3" />
+                      {/* {file.metadata?.subject && <p className="text-sm text-gray-500 line-clamp-2 mb-4">{file.metadata.subject}</p>} */}
+                      
+                      {file.summary && (
+                        <p className="text-sm text-gray-500 line-clamp-3 mb-4">
+                          {/* <Sparkles className="w-3 h-3 inline mr-1 text-purple-500"/>  */}
+                          {file.summary}
+                        </p>
                       )}
-                      {gmailSummarizingId === file._id ? "Summarizing..." : "AI Summary"}
-                    </button>
+                    </div>
+
+                  <div>
+                      <div className="flex justify-between text-xs text-gray-400 items-center mb-4">
+                        <span>{new Date(file.uploadDate).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="px-3 py-1 rounded-full text-xs"
+                            style={getDepartmentBadgeStyle(getGmailDepartmentLabel(file))}
+                          >
+                            {getGmailDepartmentLabel(file)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGenerateGmailSummary(file._id, file.filename);
+                        }}
+                        disabled={gmailSummarizingId === file._id}
+                        className="w-full py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition flex items-center justify-center gap-2 border border-indigo-100"
+                      >
+                        {gmailSummarizingId === file._id ? (
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                        {gmailSummarizingId === file._id ? "Summarizing..." : "AI Summary"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>

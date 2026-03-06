@@ -8,10 +8,10 @@ SENDER_WEIGHTS = {
     "regulator": 30,
     "government": 26,
     "police": 24,
-    "internal": 15,
+    "internal": 75,
     "vendor": 10,
     "customer": 12,
-    "unknown": 8,
+    "unknown": 60,
 }
 
 DOCUMENT_TYPE_WEIGHTS = {
@@ -159,15 +159,19 @@ def _escalate(
 
 def compute_priority(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """Rule-based weighted priority scoring using extracted metadata."""
-    sender = metadata.get("sender", {}) if isinstance(metadata.get("sender"), dict) else {}
+    sender = metadata.get("sender", {}) if isinstance(
+        metadata.get("sender"), dict) else {}
     sender_category = sender.get("category", "unknown")
 
     sender_weight = _score_sender(sender_category)
     doc_type_weight = _score_document_type(metadata.get("document_type"))
-    deadline_score, days_remaining = _score_deadline(metadata.get("selected_deadline"))
-    urgency_score, matched_urgency_keywords = _score_urgency_indicators(metadata.get("urgency_indicators", []))
+    deadline_score, days_remaining = _score_deadline(
+        metadata.get("selected_deadline"))
+    urgency_score, matched_urgency_keywords = _score_urgency_indicators(
+        metadata.get("urgency_indicators", []))
 
-    base_score = min(sender_weight + doc_type_weight + deadline_score + urgency_score, 100)
+    base_score = min(sender_weight + doc_type_weight +
+                     deadline_score + urgency_score, 100)
     final_score, escalation = _escalate(
         current_score=base_score,
         sender_category=sender_category,

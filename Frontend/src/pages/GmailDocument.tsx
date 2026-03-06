@@ -51,6 +51,7 @@ export default function GmailDocument() {
   const [downloading, setDownloading] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
+  const getDisplayFilename = (name: string) => name.replace(/^\d{10,}[-_]+/, "");
 
   useEffect(() => {
     loadFileDetails();
@@ -99,7 +100,7 @@ export default function GmailDocument() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = file.filename;
+      a.download = getDisplayFilename(file.filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -172,7 +173,7 @@ export default function GmailDocument() {
 
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-2">{file.filename}</h1>
+              <h1 className="text-3xl font-bold mb-2">{getDisplayFilename(file.filename)}</h1>
               <p className="text-gray-600">
                 <Clock className="w-4 h-4 inline mr-1" />
                 {new Date(file.uploadDate).toLocaleDateString("en-US", {
@@ -244,7 +245,7 @@ export default function GmailDocument() {
             <div className="bg-white rounded-xl shadow-sm border" style={{ height: "600px" }}>
               <DocumentViewer
                 fileId={file._id}
-                fileName={file.filename}
+                fileName={getDisplayFilename(file.filename)}
                 isGmailAttachment={true}
               />
             </div>
