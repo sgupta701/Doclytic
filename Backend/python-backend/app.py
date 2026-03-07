@@ -1,9 +1,13 @@
 import os
 import re
+import csv
+import threading
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import joblib
+import numpy as np
+import pandas as pd
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -33,8 +37,15 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-MODEL_PATH = "models/doc_clf.joblib"
-CONFIDENCE_THRESHOLD = 0.50
+BASE_DIR = os.path.dirname(__file__)
+MODEL_PATH = os.path.join(BASE_DIR, "models", "doc_clf.joblib")
+DATASET_PATH = os.path.join(BASE_DIR, "dataset_pipeline", "output", "dataset.csv")
+FEEDBACK_DATASET_PATH = os.path.join(
+    BASE_DIR, "dataset_pipeline", "output", "manual_review_feedback.csv"
+)
+CONFIDENCE_THRESHOLD = 0.60
+FEEDBACK_SIMILARITY_THRESHOLD = float(os.getenv("FEEDBACK_SIMILARITY_THRESHOLD", "0.82"))
+SBERT_MODEL_NAME = os.getenv("SBERT_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
 
 MONGO_URI = os.getenv("MONGO_URI", "").strip()
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "test").strip()
@@ -45,12 +56,20 @@ DOC_FILES_COLLECTION = f"{DOC_BUCKET_NAME}.files"
 mongo_client: Optional[MongoClient] = None
 mongo_db = None
 doc_bucket: Optional[GridFSBucket] = None
+feedback_lock = threading.Lock()
+feedback_rows: List[Dict[str, str]] = []
+feedback_embeddings: Optional[np.ndarray] = None
 
 
 class RouteUpdateRequest(BaseModel):
     route_to: str
+    label: Optional[str] = None
     note: Optional[str] = None
     decided_by: Optional[str] = None
+
+
+class RetrainRequest(BaseModel):
+    min_feedback: int = 50
 
 
 class SummaryItem(BaseModel):
@@ -71,18 +90,226 @@ except Exception as e:
     clf = None
 
 
-def classify_text(extracted_text: str):
+def _is_st_classifier_ready() -> bool:
+    return clf is not None and hasattr(clf, "encode")
+
+
+def _normalize_label(label: str) -> str:
+    return (label or "").strip().lower().replace(" ", "_")
+
+
+def _normalize_department_name(name: str) -> str:
+    return (name or "").strip().lower()
+
+
+def _filename_to_features(filename: str) -> str:
+    raw = (filename or "").strip()
+    if not raw:
+        return ""
+
+    base = os.path.basename(raw)
+    stem, _ = os.path.splitext(base)
+    normalized = re.sub(r"[_\-.]+", " ", stem.lower())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
+def _build_classification_input(extracted_text: str, filename: str = "") -> str:
+    body = (extracted_text or "").strip()
+    fname_features = _filename_to_features(filename)
+    if not fname_features:
+        return body
+
+    # Repeat filename cues to make short but high-signal names more influential.
+    return (
+        f"filename cues {fname_features} "
+        f"filename cues {fname_features} "
+        f"{body}"
+    ).strip()
+
+
+def _build_label_department_map(rules: Dict[str, List[str]]) -> Dict[str, str]:
+    label_map: Dict[str, str] = {}
+    for department, labels in rules.items():
+        for raw_label in labels:
+            normalized = _normalize_label(raw_label)
+            if normalized and normalized not in label_map:
+                label_map[normalized] = department
+    return label_map
+
+
+LABEL_TO_DEPARTMENT = _build_label_department_map(ROUTING_RULES)
+DEPARTMENT_NAME_LOOKUP = {
+    _normalize_department_name(dept): dept for dept in ROUTING_RULES.keys()
+}
+GENERIC_LABEL_TO_DEPARTMENT = {
+    "report": "Operations",
+    "invoice": "Finance",
+    "contract": "Legal",
+    "email": "Admin",
+    "form": "Admin",
+}
+
+
+def _ensure_feedback_csv():
+    os.makedirs(os.path.dirname(FEEDBACK_DATASET_PATH), exist_ok=True)
+    if os.path.exists(FEEDBACK_DATASET_PATH) and os.path.getsize(FEEDBACK_DATASET_PATH) > 0:
+        return
+    with open(FEEDBACK_DATASET_PATH, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["text", "label", "department", "source_doc_id", "created_at"],
+        )
+        writer.writeheader()
+
+
+def _load_feedback_memory():
+    global feedback_rows, feedback_embeddings
+    _ensure_feedback_csv()
+    rows: List[Dict[str, str]] = []
+
+    with open(FEEDBACK_DATASET_PATH, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            text = (row.get("text") or "").strip()
+            label = _normalize_label(row.get("label") or "")
+            department = (row.get("department") or "").strip()
+            if not text or not label or not department:
+                continue
+            rows.append(
+                {
+                    "text": text,
+                    "label": label,
+                    "department": department,
+                    "source_doc_id": (row.get("source_doc_id") or "").strip(),
+                    "created_at": (row.get("created_at") or "").strip(),
+                }
+            )
+
+    embeddings = None
+    if rows and _is_st_classifier_ready():
+        texts = [r["text"] for r in rows]
+        embeddings = clf.encode(texts, batch_size=64)
+        if embeddings.size > 0:
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            embeddings = embeddings / norms
+
+    with feedback_lock:
+        feedback_rows = rows
+        feedback_embeddings = embeddings
+
+
+def _append_feedback_sample(
+    text: str, label: str, department: str, source_doc_id: str
+) -> bool:
+    global feedback_embeddings
+    cleaned_text = (text or "").strip()
+    normalized_label = _normalize_label(label)
+    if not cleaned_text or len(cleaned_text) < 20 or not normalized_label:
+        return False
+
+    _ensure_feedback_csv()
+    with open(FEEDBACK_DATASET_PATH, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["text", "label", "department", "source_doc_id", "created_at"],
+        )
+        writer.writerow(
+            {
+                "text": cleaned_text,
+                "label": normalized_label,
+                "department": department,
+                "source_doc_id": source_doc_id,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+    if _is_st_classifier_ready():
+        emb = clf.encode([cleaned_text], batch_size=1)
+        if emb.size > 0:
+            norm = np.linalg.norm(emb, axis=1, keepdims=True)
+            norm[norm == 0] = 1.0
+            emb = emb / norm
+            with feedback_lock:
+                feedback_rows.append(
+                    {
+                        "text": cleaned_text,
+                        "label": normalized_label,
+                        "department": department,
+                        "source_doc_id": source_doc_id,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+                if feedback_embeddings is None:
+                    feedback_embeddings = emb
+                else:
+                    feedback_embeddings = np.vstack([feedback_embeddings, emb])
+            return True
+
+    _load_feedback_memory()
+    return True
+
+
+def _predict_from_feedback_memory(classification_input: str):
+    if not _is_st_classifier_ready():
+        return None
+    text = (classification_input or "").strip()
+    if len(text) < 20:
+        return None
+
+    with feedback_lock:
+        if not feedback_rows or feedback_embeddings is None or len(feedback_rows) == 0:
+            return None
+        local_rows = feedback_rows
+        local_embeddings = feedback_embeddings
+
+    query = clf.encode([text], batch_size=1)
+    if query.size == 0:
+        return None
+    q_norm = np.linalg.norm(query, axis=1, keepdims=True)
+    q_norm[q_norm == 0] = 1.0
+    query = query / q_norm
+
+    sims = np.dot(local_embeddings, query[0])
+    best_idx = int(np.argmax(sims))
+    best_sim = float(sims[best_idx])
+    if best_sim < FEEDBACK_SIMILARITY_THRESHOLD:
+        return None
+
+    return local_rows[best_idx]["label"], best_sim
+
+
+@app.on_event("startup")
+def _startup_init_learning():
+    try:
+        _load_feedback_memory()
+    except Exception as exc:
+        print(f"Warning: failed to load feedback memory: {exc}")
+
+
+def classify_text(extracted_text: str, filename: str = ""):
     """Predict the document class with probability if supported."""
-    if not clf or not extracted_text:
+    if not clf or (not extracted_text and not filename):
         return "Unknown", 0.0
 
     try:
+        clean_text = _build_classification_input(extracted_text, filename)
+        if not clean_text:
+            return "Unknown", 0.0
+
+        feedback_pred = _predict_from_feedback_memory(clean_text)
+        if feedback_pred:
+            return feedback_pred[0], feedback_pred[1]
+
         if hasattr(clf, "predict_proba"):
-            probs = clf.predict_proba([extracted_text])[0]
+            probs = clf.predict_proba([clean_text])[0]
             idx = probs.argmax()
-            return clf.classes_[idx], float(probs[idx])
-        pred = clf.predict([extracted_text])[0]
-        return pred, 1.0
+            label = str(clf.classes_[idx]).strip().lower()
+            return label, float(probs[idx])
+
+        pred = clf.predict([clean_text])[0]
+        return str(pred).strip().lower(), 1.0
     except Exception:
         return "Error", 0.0
 
@@ -163,8 +390,9 @@ def _resolve_department(predicted_label: str, probability: float):
     if probability < CONFIDENCE_THRESHOLD:
         return None, "low_confidence_below_threshold"
 
-    normalized = (predicted_label or "").strip().lower()
-    department = ROUTING_RULES.get(normalized)
+    normalized = _normalize_label(predicted_label)
+    department = LABEL_TO_DEPARTMENT.get(normalized) or GENERIC_LABEL_TO_DEPARTMENT.get(
+        normalized)
     if not department:
         return None, "unmapped_label"
     return department, "ok"
@@ -304,6 +532,91 @@ def home():
     }
 
 
+@app.get("/routing-rules")
+def get_routing_rules():
+    return {
+        "departments": {
+            dept: sorted([_normalize_label(label) for label in labels])
+            for dept, labels in ROUTING_RULES.items()
+        }
+    }
+
+
+@app.get("/learning/feedback-stats")
+def feedback_stats():
+    _ensure_feedback_csv()
+    total = 0
+    by_label: Dict[str, int] = {}
+    if os.path.exists(FEEDBACK_DATASET_PATH):
+        with open(FEEDBACK_DATASET_PATH, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                label = _normalize_label(row.get("label") or "")
+                if not label:
+                    continue
+                total += 1
+                by_label[label] = by_label.get(label, 0) + 1
+    return {"feedback_samples": total, "by_label": by_label}
+
+
+@app.post("/learning/retrain")
+def retrain_from_feedback(payload: RetrainRequest):
+    global clf
+    _ensure_feedback_csv()
+
+    if not os.path.exists(DATASET_PATH):
+        return JSONResponse({"message": "Base dataset not found"}, status_code=404)
+    if not os.path.exists(FEEDBACK_DATASET_PATH):
+        return JSONResponse({"message": "Feedback dataset not found"}, status_code=404)
+
+    base_df = pd.read_csv(DATASET_PATH)
+    fb_df = pd.read_csv(FEEDBACK_DATASET_PATH)
+    if len(fb_df) < max(1, payload.min_feedback):
+        return JSONResponse(
+            {
+                "message": "Not enough feedback samples for retraining",
+                "feedback_count": int(len(fb_df)),
+                "required_min_feedback": int(payload.min_feedback),
+            },
+            status_code=400,
+        )
+
+    if "text" not in base_df.columns or "label" not in base_df.columns:
+        return JSONResponse({"message": "Base dataset must contain text,label"}, status_code=400)
+    if "text" not in fb_df.columns or "label" not in fb_df.columns:
+        return JSONResponse({"message": "Feedback dataset must contain text,label"}, status_code=400)
+
+    train_df = pd.concat(
+        [base_df[["text", "label"]], fb_df[["text", "label"]]],
+        ignore_index=True,
+    )
+    train_df["text"] = train_df["text"].fillna("").astype(str)
+    train_df["label"] = train_df["label"].fillna("").astype(str).map(_normalize_label)
+    train_df = train_df[(train_df["text"].str.len() > 0) & (train_df["label"].str.len() > 0)]
+
+    if train_df.empty:
+        return JSONResponse({"message": "No training rows after cleaning"}, status_code=400)
+
+    try:
+        from st_classifier import SentenceTransformerClassifier
+
+        new_clf = SentenceTransformerClassifier(model_name=SBERT_MODEL_NAME)
+        new_clf.fit(train_df["text"].tolist(), train_df["label"].tolist())
+        joblib.dump(new_clf, MODEL_PATH)
+        clf = new_clf
+        _load_feedback_memory()
+        return {
+            "status": "ok",
+            "message": "Model retrained with manual-review feedback",
+            "base_rows": int(len(base_df)),
+            "feedback_rows": int(len(fb_df)),
+            "train_rows": int(len(train_df)),
+            "model_path": MODEL_PATH,
+        }
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 @app.post("/summarize")
 async def summarize_single(file: UploadFile = File(...)):
     try:
@@ -367,7 +680,7 @@ async def classify_and_summarize(file: UploadFile = File(...)):
         if not text or text.strip() == "":
             return JSONResponse({"error": "Could not extract text.", "file": file.filename}, status_code=422)
 
-        predicted_label, probability = classify_text(text)
+        predicted_label, probability = classify_text(text, file.filename)
         summary = generate_summary(text)
         department, note = _resolve_department(predicted_label, probability)
         route_to = department if department else "manual_review"
@@ -420,7 +733,7 @@ async def ingest_and_route(file: UploadFile = File(...)):
         if not text or text.strip() == "":
             return JSONResponse({"error": "Could not extract text.", "file": file.filename}, status_code=422)
 
-        predicted_label, probability = classify_text(text)
+        predicted_label, probability = classify_text(text, file.filename)
         summary = generate_summary(text)
         extracted_metadata = extract_priority_metadata(text, predicted_label)
         priority_result = compute_priority(extracted_metadata)
@@ -529,17 +842,41 @@ def update_document_route(document_id: str, payload: RouteUpdateRequest):
         if not route_to:
             return JSONResponse({"message": "route_to is required"}, status_code=400)
 
+        route_to_key = _normalize_department_name(route_to)
+        canonical_department = DEPARTMENT_NAME_LOOKUP.get(route_to_key)
+        if not canonical_department:
+            return JSONResponse({"message": "Invalid route_to department"}, status_code=400)
+
         existing = mongo_db[DOC_FILES_COLLECTION].find_one({"_id": oid})
         if not existing:
             return JSONResponse({"message": "Document not found"}, status_code=404)
 
+        selected_label = None
+        if payload.label is not None and payload.label.strip():
+            normalized_label = _normalize_label(payload.label)
+            allowed_labels = {
+                _normalize_label(l) for l in ROUTING_RULES.get(canonical_department, [])
+            }
+            if normalized_label not in allowed_labels:
+                return JSONResponse(
+                    {
+                        "message": "Selected label is not valid for the chosen department",
+                        "allowed_labels": sorted(allowed_labels),
+                    },
+                    status_code=400,
+                )
+            selected_label = normalized_label
+
         update_ops = {
-            "metadata.route_to": route_to,
+            "metadata.route_to": canonical_department,
             "metadata.note": payload.note or "routed_by_manual_review",
             "metadata.manual_review.status": "resolved",
-            "metadata.manual_review.decided_department": route_to,
+            "metadata.manual_review.decided_department": canonical_department,
             "metadata.manual_review.decided_at": datetime.now(timezone.utc),
         }
+        if selected_label:
+            update_ops["metadata.classification.label"] = selected_label
+            update_ops["metadata.manual_review.decided_label"] = selected_label
         if payload.decided_by:
             update_ops["metadata.manual_review.decided_by"] = payload.decided_by
 
@@ -547,10 +884,23 @@ def update_document_route(document_id: str, payload: RouteUpdateRequest):
             {"_id": oid}, {"$set": update_ops})
 
         updated = mongo_db[DOC_FILES_COLLECTION].find_one({"_id": oid})
+        if selected_label:
+            feedback_text = (
+                (existing.get("metadata", {}) or {}).get("summary")
+                or existing.get("filename")
+                or ""
+            )
+            _append_feedback_sample(
+                text=feedback_text,
+                label=selected_label,
+                department=canonical_department,
+                source_doc_id=str(oid),
+            )
         return {
             "id": str(updated["_id"]),
             "filename": updated.get("filename"),
             "route_to": updated.get("metadata", {}).get("route_to"),
+            "classification": updated.get("metadata", {}).get("classification", {}),
             "note": updated.get("metadata", {}).get("note"),
             "manual_review": updated.get("metadata", {}).get("manual_review", {}),
         }

@@ -18,7 +18,11 @@ ROUTING_RULES = {
 
     "Finance": [
         "invoice",
+        "tax_invoice",
+        "proforma_invoice",
         "payment_receipt",
+        "payment_advice",
+        "payment_confirmation",
         "expense_report",
         "bank_statement",
         "tax_return",
@@ -33,14 +37,19 @@ ROUTING_RULES = {
         "credit_note",
         "debit_note",
         "payment_voucher",
-        "purchase_invoice"
+        "purchase_invoice",
+        "financial_report",
+        "cash_flow_statement"
     ],
 
     "HR": [
         "resume",
+        "profile",
+        "employee_profile",
         "cv",
         "job_application",
         "offer_letter",
+        "appraisal_letter",
         "appointment_letter",
         "joining_letter",
         "relieving_letter",
@@ -57,14 +66,18 @@ ROUTING_RULES = {
         "employee_handbook_acknowledgement",
         "company_policies",
         "code_of_conduct",
-        "nda_employee"
+        "nda_employee",
+        "hr_nda"
     ],
 
     "Legal": [
         "contract",
+        "contracts",
         "service_agreement",
         "non_disclosure_agreement",
         "nda",
+        "lease_agreement",
+        "legal_contract",
         "memorandum_of_understanding",
         "partnership_agreement",
         "legal_notice",
@@ -93,6 +106,7 @@ ROUTING_RULES = {
     ],
 
     "Operations": [
+        "report",
         "project_report",
         "operations_report",
         "daily_report",
