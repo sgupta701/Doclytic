@@ -51,6 +51,7 @@ interface DocumentWithDetails {
   } | null;
   department_id: string;
   routed_department?: string;
+  routed_departments?: string[];
   uploaded_by?: string | { _id?: string };
   department?: Department;
   createdAt: string;
@@ -83,6 +84,7 @@ interface IngestResponse {
   classification?: {
     label: string;
     confidence: number;
+    department_predictions?: Array<{ department: string; score: number }>;
   };
   extraction?: {
     sender?: { name?: string | null; category?: string };
@@ -108,8 +110,17 @@ interface IngestResponse {
     engine_version?: string;
   };
   actions?: {
-    email?: { route_to?: string };
-    storage?: { route_to?: string; stored_id?: string };
+    email?: {
+      route_to?: string;
+      routed_departments?: string[];
+      manual_review_departments?: string[];
+    };
+    storage?: {
+      route_to?: string;
+      stored_id?: string;
+      routed_departments?: string[];
+      manual_review_departments?: string[];
+    };
   };
 }
 
@@ -332,9 +343,26 @@ export default function Dashboard() {
     return routedName;
   };
 
+  const getRoutedDepartments = (aiData: IngestResponse): string[] => {
+    const fromEmail = aiData.actions?.email?.routed_departments || [];
+    const fromStorage = aiData.actions?.storage?.routed_departments || [];
+    const merged = Array.from(new Set([...fromEmail, ...fromStorage].filter(Boolean)));
+    return merged;
+  };
+
   const isManualReviewRequired = (aiData: IngestResponse): boolean => {
     const routedName = (aiData.actions?.email?.route_to || aiData.actions?.storage?.route_to || "").toLowerCase();
-    return routedName === "manual_review";
+    const manualCandidates = [
+      ...(aiData.actions?.email?.manual_review_departments || []),
+      ...(aiData.actions?.storage?.manual_review_departments || []),
+    ];
+    return routedName === "manual_review" || manualCandidates.length > 0;
+  };
+
+  const getManualReviewDepartments = (aiData: IngestResponse): string[] => {
+    const fromEmail = aiData.actions?.email?.manual_review_departments || [];
+    const fromStorage = aiData.actions?.storage?.manual_review_departments || [];
+    return Array.from(new Set([...fromEmail, ...fromStorage].filter(Boolean)));
   };
 
   const getSuggestedDepartmentFromLabel = (label?: string): string | null => {
@@ -398,8 +426,11 @@ export default function Dashboard() {
       const aiData = await runClassifierAndSummarizerNoMail(uploadFile);
       const generatedSummary = aiData.summary || "AI could not generate a summary.";
       const routedDepartment = getRoutedDepartmentName(aiData);
+      const routedDepartments = getRoutedDepartments(aiData);
       const needsManualReview = isManualReviewRequired(aiData);
-      const suggestedDepartment = getSuggestedDepartmentFromLabel(aiData.classification?.label);
+      const manualReviewDepartments = getManualReviewDepartments(aiData);
+      const suggestedDepartment =
+        manualReviewDepartments[0] || getSuggestedDepartmentFromLabel(aiData.classification?.label);
       const priorityLevel = aiData.priority?.priority_level || "Medium";
       const urgencyFromPriority =
         priorityLevel === "Critical" || priorityLevel === "High"
@@ -419,8 +450,9 @@ export default function Dashboard() {
           body: JSON.stringify({
             summary: generatedSummary,
             urgency: urgencyFromPriority,
-            ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
+            ...((needsManualReview && !routedDepartment) ? { routed_department: "manual_review", department_id: null } : {}),
             ...(routedDepartment ? { routed_department: routedDepartment } : {}),
+            ...(routedDepartments.length > 0 ? { routed_departments: routedDepartments } : {}),
             ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
             ...(aiData.extraction ? { extraction: aiData.extraction } : {}),
             ...(aiData.priority ? { priority: aiData.priority } : {}),
@@ -431,8 +463,15 @@ export default function Dashboard() {
                       required: true,
                       status: "pending",
                       suggested_department: suggestedDepartment,
+                      suggested_departments: manualReviewDepartments,
                       predicted_label: aiData.classification?.label || "",
                       confidence: aiData.classification?.confidence ?? 0,
+                      confidence_by_department: Object.fromEntries(
+                        (aiData.classification?.department_predictions || []).map((item) => [
+                          item.department,
+                          item.score,
+                        ])
+                      ),
                     },
                   },
                 }
@@ -446,9 +485,10 @@ export default function Dashboard() {
         const cleanedFilename = getDisplayFilename(file.filename);
         createFormData.append("title", cleanedFilename.replace(/\.[^/.]+$/, ""));
         createFormData.append("summary", generatedSummary);
-        if (needsManualReview) createFormData.append("routed_department", "manual_review");
+        if (needsManualReview && !routedDepartment) createFormData.append("routed_department", "manual_review");
         if (routedDepartmentId) createFormData.append("department_id", routedDepartmentId);
         if (routedDepartment) createFormData.append("routed_department", routedDepartment);
+        if (routedDepartments.length > 0) createFormData.append("routed_departments", JSON.stringify(routedDepartments));
 
         const createDocRes = await authFetch(`${API_URL}/api/documents`, {
           method: "POST",
@@ -465,7 +505,7 @@ export default function Dashboard() {
                 urgency: urgencyFromPriority,
                 ...(aiData.extraction ? { extraction: aiData.extraction } : {}),
                 ...(aiData.priority ? { priority: aiData.priority } : {}),
-                ...(needsManualReview ? { department_id: null } : {}),
+                ...((needsManualReview && !routedDepartment) ? { department_id: null } : {}),
                 ...(needsManualReview
                   ? {
                       metadata: {
@@ -473,12 +513,20 @@ export default function Dashboard() {
                           required: true,
                           status: "pending",
                           suggested_department: suggestedDepartment,
+                          suggested_departments: manualReviewDepartments,
                           predicted_label: aiData.classification?.label || "",
                           confidence: aiData.classification?.confidence ?? 0,
+                          confidence_by_department: Object.fromEntries(
+                            (aiData.classification?.department_predictions || []).map((item) => [
+                              item.department,
+                              item.score,
+                            ])
+                          ),
                         },
                       },
                     }
                   : {}),
+                ...(routedDepartments.length > 0 ? { routed_departments: routedDepartments } : {}),
               }),
             });
           }
@@ -551,8 +599,11 @@ export default function Dashboard() {
           const aiData = await runClassifierAndSummarizer(file);
           const generatedSummary = aiData.summary || "AI could not generate a summary.";
           const routedDepartment = getRoutedDepartmentName(aiData);
+          const routedDepartments = getRoutedDepartments(aiData);
           const needsManualReview = isManualReviewRequired(aiData);
-      const suggestedDepartment = getSuggestedDepartmentFromLabel(aiData.classification?.label);
+      const manualReviewDepartments = getManualReviewDepartments(aiData);
+      const suggestedDepartment =
+        manualReviewDepartments[0] || getSuggestedDepartmentFromLabel(aiData.classification?.label);
       const pythonFileId = aiData.actions?.storage?.stored_id;
       routedDepartmentToNavigate = routedDepartment;
       const deptList = await ensureDepartmentsLoaded();
@@ -570,9 +621,10 @@ export default function Dashboard() {
         body: JSON.stringify({
           summary: generatedSummary,
           urgency: urgencyFromPriority,
-          ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
+          ...((needsManualReview && !routedDepartment) ? { routed_department: "manual_review", department_id: null } : {}),
           ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
           ...(routedDepartment ? { routed_department: routedDepartment } : {}),
+          ...(routedDepartments.length > 0 ? { routed_departments: routedDepartments } : {}),
           ...(pythonFileId ? { python_file_id: pythonFileId } : {}),
           ...(aiData.extraction ? { extraction: aiData.extraction } : {}),
           ...(aiData.priority ? { priority: aiData.priority } : {}),
@@ -583,8 +635,15 @@ export default function Dashboard() {
                     required: true,
                     status: "pending",
                     suggested_department: suggestedDepartment,
+                    suggested_departments: manualReviewDepartments,
                     predicted_label: aiData.classification?.label || "",
                     confidence: aiData.classification?.confidence ?? 0,
+                    confidence_by_department: Object.fromEntries(
+                      (aiData.classification?.department_predictions || []).map((item) => [
+                        item.department,
+                        item.score,
+                      ])
+                    ),
                   },
                 },
               }
@@ -865,6 +924,15 @@ export default function Dashboard() {
       Medium: "bg-amber-100 text-amber-800 border-amber-200",
       Low: "bg-emerald-100 text-emerald-800 border-emerald-200",
     }[level || ""] || "bg-slate-100 text-slate-700 border-slate-200");
+  const getDepartmentBadgeText = (doc: DocumentWithDetails) => {
+    const multi = (doc.routed_departments || [])
+      .map((d) => String(d || "").trim())
+      .filter(Boolean);
+    if (multi.length > 0) return multi.join(" / ");
+    if (doc.routed_department) return doc.routed_department;
+    if (doc.department?.name) return doc.department.name;
+    return "";
+  };
 
   const getDepartmentIcon = (name: string) => {
     const icons: any = { HR: Users, Finance: DollarSign, Legal: Scale, Admin: Briefcase, Procurement: ShoppingCart };
@@ -1116,9 +1184,9 @@ export default function Dashboard() {
                     <div>
                       <div className="flex justify-between text-xs text-gray-400 items-center mb-4">
                         <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
-                        {doc.department && (
-                          <span className="px-3 py-1 rounded-full text-xs" style={{ backgroundColor: `${doc.department.color}15`, color: doc.department.color }}>
-                            {doc.department.name}
+                        {getDepartmentBadgeText(doc) && (
+                          <span className="px-3 py-1 rounded-full text-xs" style={{ backgroundColor: `${doc.department?.color || "#64748B"}15`, color: doc.department?.color || "#334155" }}>
+                            {getDepartmentBadgeText(doc)}
                           </span>
                         )}
                       </div>

@@ -85,6 +85,40 @@ const deleteStoredFileIfAny = async (storageFileId) => {
   await gfs.delete(new mongoose.Types.ObjectId(storageFileId));
 };
 
+const isRoutingOnlyUpdatePayload = (body) => {
+  if (!body || typeof body !== "object") return false;
+  const allowedTopLevel = new Set([
+    "department_id",
+    "routed_department",
+    "routed_departments",
+    "metadata",
+  ]);
+  const keys = Object.keys(body);
+  if (keys.length === 0) return false;
+  if (keys.some((key) => !allowedTopLevel.has(key))) return false;
+
+  if (!("metadata" in body)) return true;
+  if (!body.metadata || typeof body.metadata !== "object") return false;
+
+  const allowedMetadataKeys = new Set([
+    "manual_review",
+    "classification",
+    "routing_history",
+  ]);
+  return Object.keys(body.metadata).every((key) => allowedMetadataKeys.has(key));
+};
+
+const isPendingManualReviewDocument = (doc) => {
+  const routed = String(doc?.routed_department || "").trim().toLowerCase();
+  const manual = doc?.metadata?.manual_review || {};
+  const status = String(manual?.status || "").trim().toLowerCase();
+  return (
+    routed === "manual_review" ||
+    manual?.required === true ||
+    status === "pending"
+  );
+};
+
 export const createDocument = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("department_id");
@@ -238,8 +272,12 @@ export const updateDocument = async (req, res) => {
       user_id: req.userId,
     });
     const isUploader = doc.uploaded_by?.toString() === req.userId;
+    const isRoutingOnlyUpdate =
+      !req.file &&
+      isRoutingOnlyUpdatePayload(req.body) &&
+      isPendingManualReviewDocument(doc);
 
-    if (!isUploader && !perm) {
+    if (!isUploader && !perm && !isRoutingOnlyUpdate) {
       return res.status(403).json({ message: "Not allowed" });
     }
 

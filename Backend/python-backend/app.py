@@ -2,6 +2,7 @@ import os
 import re
 import csv
 import threading
+import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -25,6 +26,9 @@ from summarizer import extract_text_from_file, generate_integrated_summary, gene
 from utils.email_sender import send_document_email_bytes
 
 app = FastAPI(title="Document Intelligence API - Integrated IDMS")
+logger = logging.getLogger("idms.routing")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO)
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
@@ -44,6 +48,9 @@ FEEDBACK_DATASET_PATH = os.path.join(
     BASE_DIR, "dataset_pipeline", "output", "manual_review_feedback.csv"
 )
 CONFIDENCE_THRESHOLD = 0.60
+AUTO_ROUTE_DEPT_THRESHOLD = 0.40
+RELEVANT_DEPT_THRESHOLD = 0.15
+TOP_DEPARTMENT_CANDIDATES = 2
 FEEDBACK_SIMILARITY_THRESHOLD = float(os.getenv("FEEDBACK_SIMILARITY_THRESHOLD", "0.82"))
 SBERT_MODEL_NAME = os.getenv("SBERT_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
 
@@ -128,26 +135,67 @@ def _build_classification_input(extracted_text: str, filename: str = "") -> str:
     ).strip()
 
 
-def _build_label_department_map(rules: Dict[str, List[str]]) -> Dict[str, str]:
-    label_map: Dict[str, str] = {}
+def _build_label_department_map(rules: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    label_map: Dict[str, List[str]] = {}
     for department, labels in rules.items():
         for raw_label in labels:
             normalized = _normalize_label(raw_label)
-            if normalized and normalized not in label_map:
-                label_map[normalized] = department
+            if not normalized:
+                continue
+            label_map.setdefault(normalized, [])
+            if department not in label_map[normalized]:
+                label_map[normalized].append(department)
     return label_map
 
 
-LABEL_TO_DEPARTMENT = _build_label_department_map(ROUTING_RULES)
+LABEL_TO_DEPARTMENTS = _build_label_department_map(ROUTING_RULES)
 DEPARTMENT_NAME_LOOKUP = {
     _normalize_department_name(dept): dept for dept in ROUTING_RULES.keys()
 }
-GENERIC_LABEL_TO_DEPARTMENT = {
-    "report": "Operations",
-    "invoice": "Finance",
-    "contract": "Legal",
-    "email": "Admin",
-    "form": "Admin",
+GENERIC_LABEL_TO_DEPARTMENTS = {
+    "report": ["Operations"],
+    "invoice": ["Finance"],
+    "contract": ["Legal"],
+    "email": ["Admin"],
+    "form": ["Admin"],
+}
+
+DEPARTMENT_KEYWORD_BOOSTS = {
+    "Finance": {
+        "keywords": [
+            "salary", "payroll", "payslip", "salary listing", "wages", "compensation",
+            "invoice", "tax", "gst", "budget", "reimbursement", "voucher", "balance sheet",
+        ],
+        "boost": 0.28,
+    },
+    "HR": {
+        "keywords": [
+            "employee", "resume", "offer letter", "joining", "relieving", "appraisal",
+            "salary", "payroll", "attendance", "hr policy", "code of conduct",
+        ],
+        "boost": 0.24,
+    },
+    "Legal": {
+        "keywords": [
+            "agreement", "contract", "nda", "legal notice", "compliance", "litigation",
+            "terms and conditions", "privacy policy",
+        ],
+        "boost": 0.24,
+    },
+    "Procurement": {
+        "keywords": [
+            "purchase order", "po", "quotation", "rfq", "rfi", "tender", "vendor",
+            "supplier", "goods receipt", "delivery challan",
+        ],
+        "boost": 0.22,
+    },
+    "Operations": {
+        "keywords": [
+            "operations report", "incident report", "inventory", "shipment", "maintenance",
+            "work order", "logistics", "production",
+        ],
+        "boost": 0.22,
+    },
 }
 
 
@@ -280,6 +328,113 @@ def _predict_from_feedback_memory(classification_input: str):
     return local_rows[best_idx]["label"], best_sim
 
 
+def _get_label_probabilities(classification_input: str) -> Dict[str, float]:
+    if not clf:
+        return {}
+
+    if hasattr(clf, "predict_proba"):
+        probs = clf.predict_proba([classification_input])[0]
+        labels = [str(c).strip().lower() for c in getattr(clf, "classes_", [])]
+        if labels and len(labels) == len(probs):
+            return {labels[i]: float(probs[i]) for i in range(len(labels))}
+
+    if hasattr(clf, "predict"):
+        pred = str(clf.predict([classification_input])[0]).strip().lower()
+        return {pred: 1.0}
+
+    return {}
+
+
+def _keyword_department_score_boost(classification_input: str) -> Dict[str, float]:
+    text = (classification_input or "").lower()
+    boosts: Dict[str, float] = {}
+    if not text:
+        return boosts
+
+    for department, config in DEPARTMENT_KEYWORD_BOOSTS.items():
+        keywords = config.get("keywords", [])
+        base_boost = float(config.get("boost", 0.0))
+        if any(keyword in text for keyword in keywords):
+            boosts[department] = base_boost
+    return boosts
+
+
+def _compute_department_scores(label_probs: Dict[str, float], classification_input: str = "") -> Dict[str, float]:
+    department_scores: Dict[str, float] = {}
+    for label, prob in label_probs.items():
+        departments = LABEL_TO_DEPARTMENTS.get(label) or GENERIC_LABEL_TO_DEPARTMENTS.get(
+            label
+        )
+        if not departments:
+            continue
+
+        for department in departments:
+            # Full-probability contribution per relevant department so shared
+            # labels can trigger true multi-department routing.
+            department_scores[department] = min(
+                1.0, department_scores.get(department, 0.0) + float(prob)
+            )
+
+    # Add lightweight heuristic boosts from filename/text keywords for
+    # cross-functional documents (e.g., salary/payroll touching HR + Finance).
+    keyword_boosts = _keyword_department_score_boost(classification_input)
+    for department, boost in keyword_boosts.items():
+        department_scores[department] = min(
+            1.0, department_scores.get(department, 0.0) + float(boost)
+        )
+
+    return department_scores
+
+
+def _to_sorted_department_predictions(department_scores: Dict[str, float]) -> List[Dict[str, float]]:
+    return [
+        {"department": department, "score": float(score)}
+        for department, score in sorted(
+            department_scores.items(), key=lambda item: item[1], reverse=True
+        )
+    ]
+
+
+def _resolve_department_routing(department_scores: Dict[str, float]) -> Dict[str, object]:
+    predictions_all = _to_sorted_department_predictions(department_scores)
+    predictions = predictions_all[:TOP_DEPARTMENT_CANDIDATES]
+    relevant = [p for p in predictions if p["score"] >= RELEVANT_DEPT_THRESHOLD]
+    auto = [p for p in relevant if p["score"] >= AUTO_ROUTE_DEPT_THRESHOLD]
+    manual = [p for p in relevant if p["score"] < AUTO_ROUTE_DEPT_THRESHOLD]
+
+    if not relevant and predictions:
+        manual = predictions[:3]
+        relevant = manual
+
+    primary = auto[0]["department"] if auto else "manual_review"
+    note = "ok" if auto else "manual_review_required"
+    return {
+        "primary_route": primary,
+        "note": note,
+        "department_predictions": predictions,
+        "relevant_departments": relevant,
+        "auto_route_departments": auto,
+        "manual_review_departments": manual,
+    }
+
+
+def _routing_debug_payload(prediction: Dict[str, object]) -> Dict[str, object]:
+    return {
+        "thresholds": {
+            "auto_route_department_threshold": AUTO_ROUTE_DEPT_THRESHOLD,
+            "relevant_department_threshold": RELEVANT_DEPT_THRESHOLD,
+            "single_label_confidence_threshold": CONFIDENCE_THRESHOLD,
+        },
+        "label": prediction.get("label"),
+        "label_confidence": prediction.get("label_confidence"),
+        "department_predictions": prediction.get("department_predictions", []),
+        "auto_route_departments": prediction.get("auto_route_departments", []),
+        "manual_review_departments": prediction.get("manual_review_departments", []),
+        "primary_route": prediction.get("primary_route"),
+        "note": prediction.get("note"),
+    }
+
+
 @app.on_event("startup")
 def _startup_init_learning():
     try:
@@ -299,14 +454,16 @@ def classify_text(extracted_text: str, filename: str = ""):
             return "Unknown", 0.0
 
         feedback_pred = _predict_from_feedback_memory(clean_text)
-        if feedback_pred:
-            return feedback_pred[0], feedback_pred[1]
+        label_probs = _get_label_probabilities(clean_text)
 
-        if hasattr(clf, "predict_proba"):
-            probs = clf.predict_proba([clean_text])[0]
-            idx = probs.argmax()
-            label = str(clf.classes_[idx]).strip().lower()
-            return label, float(probs[idx])
+        if feedback_pred:
+            fb_label, fb_score = feedback_pred
+            label_probs[fb_label] = max(float(label_probs.get(fb_label, 0.0)), float(fb_score))
+            return fb_label, float(fb_score)
+
+        if label_probs:
+            best = max(label_probs.items(), key=lambda item: item[1])
+            return best[0], float(best[1])
 
         pred = clf.predict([clean_text])[0]
         return str(pred).strip().lower(), 1.0
@@ -386,16 +543,34 @@ def extract_priority_metadata(extracted_text: str, predicted_label: str) -> dict
     }
 
 
-def _resolve_department(predicted_label: str, probability: float):
-    if probability < CONFIDENCE_THRESHOLD:
-        return None, "low_confidence_below_threshold"
+def predict_document(extracted_text: str, filename: str = "") -> Dict[str, object]:
+    classification_input = _build_classification_input(extracted_text, filename)
+    if not classification_input:
+        return {
+            "label": "Unknown",
+            "label_confidence": 0.0,
+            "label_probabilities": {},
+            "department_scores": {},
+            **_resolve_department_routing({}),
+        }
 
-    normalized = _normalize_label(predicted_label)
-    department = LABEL_TO_DEPARTMENT.get(normalized) or GENERIC_LABEL_TO_DEPARTMENT.get(
-        normalized)
-    if not department:
-        return None, "unmapped_label"
-    return department, "ok"
+    predicted_label, label_confidence = classify_text(extracted_text, filename)
+    label_probs = _get_label_probabilities(classification_input)
+    if predicted_label and predicted_label not in ("Unknown", "Error"):
+        label_probs[predicted_label] = max(
+            float(label_probs.get(predicted_label, 0.0)), float(label_confidence)
+        )
+
+    department_scores = _compute_department_scores(label_probs, classification_input)
+    routing = _resolve_department_routing(department_scores)
+
+    return {
+        "label": predicted_label,
+        "label_confidence": float(label_confidence),
+        "label_probabilities": label_probs,
+        "department_scores": department_scores,
+        **routing,
+    }
 
 
 def _ensure_db():
@@ -455,35 +630,60 @@ def route_and_send_email(
     filename: str,
     content_type: str,
     file_bytes: bytes,
-    probability: float,
+    routing_decision: Dict[str, object],
     summary: str,
 ) -> dict:
-    department, note = _resolve_department(predicted_label, probability)
-    if department is None:
-        return {"route_to": "manual_review", "emails": [], "note": note}
+    auto_departments = [
+        item["department"] for item in routing_decision.get("auto_route_departments", [])
+    ]
+    manual_departments = [
+        item["department"] for item in routing_decision.get("manual_review_departments", [])
+    ]
 
-    emails = _get_department_emails_from_db(department)
-    if not emails:
-        return {"route_to": "manual_review", "emails": [], "note": "no_department_users_found"}
+    if not auto_departments:
+        return {
+            "route_to": "manual_review",
+            "routed_departments": [],
+            "manual_review_departments": manual_departments,
+            "emails": [],
+            "note": "manual_review_required",
+        }
 
     subject = f"New Document Routed: {predicted_label}"
-    body = (
-        f"A new {predicted_label} document has been routed to your department.\n\n"
-        f"--- SUMMARY ---\n{summary}\n"
-    )
+    sent_departments: List[str] = []
+    sent_emails: List[str] = []
 
-    try:
-        send_document_email_bytes(
-            recipients=emails,
-            subject=subject,
-            body=body,
-            filename=filename,
-            file_bytes=file_bytes,
-            content_type=content_type,
+    for department in auto_departments:
+        emails = _get_department_emails_from_db(department)
+        if not emails:
+            manual_departments.append(department)
+            continue
+
+        body = (
+            f"A new {predicted_label} document has been routed to your department.\n\n"
+            f"--- SUMMARY ---\n{summary}\n"
         )
-        return {"route_to": department, "emails": emails, "note": "email_sent_successfully"}
-    except Exception as e:
-        return {"route_to": department, "emails": emails, "note": f"email_failed: {str(e)}"}
+        try:
+            send_document_email_bytes(
+                recipients=emails,
+                subject=subject,
+                body=body,
+                filename=filename,
+                file_bytes=file_bytes,
+                content_type=content_type,
+            )
+            sent_departments.append(department)
+            sent_emails.extend(emails)
+        except Exception:
+            manual_departments.append(department)
+
+    return {
+        "route_to": sent_departments[0] if sent_departments else "manual_review",
+        "routed_departments": sent_departments,
+        "manual_review_departments": sorted(set(manual_departments)),
+        "emails": sorted(set(sent_emails)),
+        "note": "email_sent_successfully" if sent_departments else "email_failed_or_no_recipients",
+    }
 
 
 def route_and_store(
@@ -491,21 +691,52 @@ def route_and_store(
     filename: str,
     content_type: str,
     file_bytes: bytes,
+    routing_decision: Dict[str, object],
     probability: float,
     summary: str,
 ) -> dict:
     """Store file + summary + classification metadata in MongoDB GridFS."""
-    department, note = _resolve_department(predicted_label, probability)
-    route_to = department if department else "manual_review"
-    note = note if department is None else "routed_successfully"
+    auto_departments = routing_decision.get("auto_route_departments", [])
+    manual_departments = routing_decision.get("manual_review_departments", [])
+    department_predictions = routing_decision.get("department_predictions", [])
+    route_to = routing_decision.get("primary_route", "manual_review")
+    note = routing_decision.get("note", "manual_review_required")
+
+    auto_department_names = [item["department"] for item in auto_departments]
+    manual_department_names = [item["department"] for item in manual_departments]
+    suggested_department = (
+        manual_department_names[0]
+        if manual_department_names
+        else (auto_department_names[0] if auto_department_names else None)
+    )
 
     _ensure_db()
     metadata = {
         "route_to": route_to,
         "note": note,
+        "routed_departments": auto_department_names,
+        "routing_history": [
+            {
+                "department": dep,
+                "reason": "auto_routed",
+                "timestamp": datetime.now(timezone.utc),
+            }
+            for dep in auto_department_names
+        ],
+        "department_predictions": department_predictions,
         "classification": {
             "label": predicted_label,
             "confidence": float(probability),
+        },
+        "manual_review": {
+            "required": bool(manual_department_names) or not bool(auto_department_names),
+            "status": "pending" if (manual_department_names or not auto_department_names) else "resolved",
+            "suggested_department": suggested_department,
+            "suggested_departments": manual_department_names,
+            "confidence_by_department": {
+                item["department"]: float(item["score"]) for item in department_predictions
+            },
+            "previously_higher_scored_departments": [],
         },
         "summary": summary,
         "content_type": content_type or "application/octet-stream",
@@ -518,6 +749,9 @@ def route_and_store(
         filename, file_bytes, metadata=metadata)
     return {
         "route_to": route_to,
+        "routed_departments": auto_department_names,
+        "manual_review_departments": manual_department_names,
+        "department_predictions": department_predictions,
         "stored_id": str(file_id),
         "note": note,
     }
@@ -680,10 +914,21 @@ async def classify_and_summarize(file: UploadFile = File(...)):
         if not text or text.strip() == "":
             return JSONResponse({"error": "Could not extract text.", "file": file.filename}, status_code=422)
 
-        predicted_label, probability = classify_text(text, file.filename)
+        prediction = predict_document(text, file.filename)
+        predicted_label = str(prediction.get("label") or "Unknown")
+        probability = float(prediction.get("label_confidence") or 0.0)
+        routing_debug = _routing_debug_payload(prediction)
+        logger.info(
+            "classify_summarize filename=%s label=%s primary_route=%s auto=%s manual=%s",
+            file.filename,
+            predicted_label,
+            routing_debug.get("primary_route"),
+            routing_debug.get("auto_route_departments"),
+            routing_debug.get("manual_review_departments"),
+        )
         summary = generate_summary(text)
-        department, note = _resolve_department(predicted_label, probability)
-        route_to = department if department else "manual_review"
+        route_to = str(prediction.get("primary_route") or "manual_review")
+        note = str(prediction.get("note") or "manual_review_required")
         extracted_metadata = extract_priority_metadata(text, predicted_label)
         priority_result = compute_priority(extracted_metadata)
 
@@ -693,6 +938,7 @@ async def classify_and_summarize(file: UploadFile = File(...)):
             "classification": {
                 "label": predicted_label,
                 "confidence": probability,
+                "department_predictions": prediction.get("department_predictions", []),
             },
             "summary": summary,
             "extraction": extracted_metadata,
@@ -703,6 +949,12 @@ async def classify_and_summarize(file: UploadFile = File(...)):
             "actions": {
                 "email": {
                     "route_to": route_to,
+                    "routed_departments": [
+                        item["department"] for item in prediction.get("auto_route_departments", [])
+                    ],
+                    "manual_review_departments": [
+                        item["department"] for item in prediction.get("manual_review_departments", [])
+                    ],
                     "emails": [],
                     "note": "skipped_for_gmail_fetch",
                 },
@@ -711,6 +963,7 @@ async def classify_and_summarize(file: UploadFile = File(...)):
                     "note": note,
                 },
             },
+            "routing_debug": routing_debug,
         }
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
@@ -733,7 +986,18 @@ async def ingest_and_route(file: UploadFile = File(...)):
         if not text or text.strip() == "":
             return JSONResponse({"error": "Could not extract text.", "file": file.filename}, status_code=422)
 
-        predicted_label, probability = classify_text(text, file.filename)
+        prediction = predict_document(text, file.filename)
+        predicted_label = str(prediction.get("label") or "Unknown")
+        probability = float(prediction.get("label_confidence") or 0.0)
+        routing_debug = _routing_debug_payload(prediction)
+        logger.info(
+            "ingest filename=%s label=%s primary_route=%s auto=%s manual=%s",
+            file.filename,
+            predicted_label,
+            routing_debug.get("primary_route"),
+            routing_debug.get("auto_route_departments"),
+            routing_debug.get("manual_review_departments"),
+        )
         summary = generate_summary(text)
         extracted_metadata = extract_priority_metadata(text, predicted_label)
         priority_result = compute_priority(extracted_metadata)
@@ -744,7 +1008,7 @@ async def ingest_and_route(file: UploadFile = File(...)):
             filename=file.filename,
             content_type=content_type,
             file_bytes=raw_bytes,
-            probability=probability,
+            routing_decision=prediction,
             summary=summary,
         )
         storage_info = route_and_store(
@@ -752,6 +1016,7 @@ async def ingest_and_route(file: UploadFile = File(...)):
             filename=file.filename,
             content_type=content_type,
             file_bytes=raw_bytes,
+            routing_decision=prediction,
             probability=probability,
             summary=summary,
         )
@@ -762,6 +1027,7 @@ async def ingest_and_route(file: UploadFile = File(...)):
             "classification": {
                 "label": predicted_label,
                 "confidence": probability,
+                "department_predictions": prediction.get("department_predictions", []),
             },
             "summary": summary,
             "extraction": extracted_metadata,
@@ -773,6 +1039,24 @@ async def ingest_and_route(file: UploadFile = File(...)):
                 "email": email_info,
                 "storage": storage_info,
             },
+            "routing_debug": routing_debug,
+        }
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/debug/routing-preview")
+async def routing_preview(file: UploadFile = File(...)):
+    """Debug-only preview of label and multi-department routing for an uploaded file."""
+    try:
+        raw_bytes = await file.read()
+        text = extract_text_from_file(raw_bytes, file.filename)
+        prediction = predict_document(text or "", file.filename)
+        return {
+            "filename": file.filename,
+            "text_extracted": bool(text and text.strip()),
+            "prediction": prediction,
+            "routing_debug": _routing_debug_payload(prediction),
         }
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
@@ -800,6 +1084,9 @@ def list_documents(route_to: Optional[str] = None, limit: int = 50):
                     "length": d.get("length"),
                     "uploadDate": d.get("uploadDate"),
                     "route_to": d.get("metadata", {}).get("route_to"),
+                    "routed_departments": d.get("metadata", {}).get("routed_departments", []),
+                    "department_predictions": d.get("metadata", {}).get("department_predictions", []),
+                    "manual_review": d.get("metadata", {}).get("manual_review", {}),
                     "classification": d.get("metadata", {}).get("classification"),
                     "summary": d.get("metadata", {}).get("summary"),
                     "content_type": d.get("metadata", {}).get("content_type"),
@@ -867,11 +1154,39 @@ def update_document_route(document_id: str, payload: RouteUpdateRequest):
                 )
             selected_label = normalized_label
 
+        existing_metadata = existing.get("metadata", {}) or {}
+        department_predictions = existing_metadata.get("department_predictions", []) or []
+        score_by_department: Dict[str, float] = {}
+        for item in department_predictions:
+            if not isinstance(item, dict):
+                continue
+            dep_name = (item.get("department") or "").strip()
+            score = float(item.get("score") or 0.0)
+            if dep_name:
+                score_by_department[dep_name] = score
+
+        selected_score = float(score_by_department.get(canonical_department, 0.0))
+        previously_higher_scored_departments = [
+            {"department": dep, "score": score}
+            for dep, score in sorted(
+                score_by_department.items(), key=lambda kv: kv[1], reverse=True
+            )
+            if dep != canonical_department and score > selected_score
+        ]
+
+        existing_routed = existing_metadata.get("routed_departments", []) or []
+        routed_departments = []
+        for dep in existing_routed + [canonical_department]:
+            if dep not in routed_departments:
+                routed_departments.append(dep)
+
         update_ops = {
             "metadata.route_to": canonical_department,
             "metadata.note": payload.note or "routed_by_manual_review",
+            "metadata.routed_departments": routed_departments,
             "metadata.manual_review.status": "resolved",
             "metadata.manual_review.decided_department": canonical_department,
+            "metadata.manual_review.previously_higher_scored_departments": previously_higher_scored_departments,
             "metadata.manual_review.decided_at": datetime.now(timezone.utc),
         }
         if selected_label:
@@ -880,8 +1195,18 @@ def update_document_route(document_id: str, payload: RouteUpdateRequest):
         if payload.decided_by:
             update_ops["metadata.manual_review.decided_by"] = payload.decided_by
 
-        mongo_db[DOC_FILES_COLLECTION].update_one(
-            {"_id": oid}, {"$set": update_ops})
+        update_doc = {
+            "$set": update_ops,
+            "$push": {
+                "metadata.routing_history": {
+                    "department": canonical_department,
+                    "reason": "manual_review_decision",
+                    "timestamp": datetime.now(timezone.utc),
+                }
+            },
+        }
+
+        mongo_db[DOC_FILES_COLLECTION].update_one({"_id": oid}, update_doc)
 
         updated = mongo_db[DOC_FILES_COLLECTION].find_one({"_id": oid})
         if selected_label:

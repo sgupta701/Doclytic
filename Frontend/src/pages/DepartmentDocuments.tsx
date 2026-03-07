@@ -21,6 +21,7 @@ interface DocumentItem {
   createdAt?: string;
   department_id?: string | { _id?: string; name?: string; color?: string };
   routed_department?: string;
+  routed_departments?: string[];
   department?: Department | string | { _id?: string; name?: string; color?: string };
 }
 
@@ -113,6 +114,14 @@ export default function DepartmentDocuments() {
     return "";
   };
 
+  const getDocumentRoutedDepartments = (doc: DocumentItem) => {
+    const direct = Array.isArray(doc.routed_departments) ? doc.routed_departments : [];
+    const normalized = direct.map((d) => String(d || "").trim()).filter(Boolean);
+    if (normalized.length > 0) return normalized;
+    const single = getDocumentDepartmentName(doc);
+    return single ? [single] : [];
+  };
+
   const prettyDepartmentName = (value: string) => {
     const v = canonicalDepartmentSlug(value);
     if (v === "hr") return "HR";
@@ -130,6 +139,14 @@ export default function DepartmentDocuments() {
       Medium: "bg-amber-100 text-amber-800 border-amber-200",
       Low: "bg-emerald-100 text-emerald-800 border-emerald-200",
     }[level || ""] || "bg-slate-100 text-slate-700 border-slate-200");
+  const getDepartmentBadgeText = (doc: DocumentItem) => {
+    const multi = getDocumentRoutedDepartments(doc);
+    if (multi.length > 0) return multi.join(" / ");
+    if (doc.department && typeof doc.department === "object" && "name" in doc.department && doc.department.name) {
+      return String(doc.department.name);
+    }
+    return "";
+  };
 
   const handleDeleteDocument = async (docId: string) => {
     const confirmed = window.confirm("Delete this document permanently?");
@@ -180,9 +197,13 @@ export default function DepartmentDocuments() {
             const docDeptId = getDocumentDepartmentId(doc);
             const docDeptName = getDocumentDepartmentName(doc);
             const docDeptSlug = canonicalDepartmentSlug(docDeptName || "");
+            const routedDeptSlugs = getDocumentRoutedDepartments(doc).map((name) =>
+              canonicalDepartmentSlug(name)
+            );
             return (
               (matchedDepartmentId !== "" && docDeptId !== "" && docDeptId === matchedDepartmentId) ||
-              (docDeptSlug !== "" && slugMatches(docDeptSlug, targetSlug))
+              (docDeptSlug !== "" && slugMatches(docDeptSlug, targetSlug)) ||
+              routedDeptSlugs.some((s) => s && slugMatches(s, targetSlug))
             );
           }
         );
@@ -196,6 +217,7 @@ export default function DepartmentDocuments() {
             sample: docs.slice(0, 5).map((d) => ({
               id: d._id,
               routed_department: d.routed_department,
+              routed_departments: d.routed_departments,
               department_id: d.department_id,
               department: d.department,
               extractedDeptId: getDocumentDepartmentId(d),
@@ -281,12 +303,15 @@ export default function DepartmentDocuments() {
 
                     <div className="flex justify-between text-xs text-gray-400 items-center">
                       <span>{doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : ""}</span>
-                      {doc.department && (
+                      {getDepartmentBadgeText(doc) && (
                         <span
                           className="px-3 py-1 rounded-full text-xs"
-                          style={{ backgroundColor: `${doc.department.color || "#94A3B8"}15`, color: doc.department.color || "#475569" }}
+                          style={{
+                            backgroundColor: `${(doc.department && typeof doc.department === "object" ? doc.department.color : "#94A3B8") || "#94A3B8"}15`,
+                            color: (doc.department && typeof doc.department === "object" ? doc.department.color : "#475569") || "#475569",
+                          }}
                         >
-                          {doc.department.name}
+                          {getDepartmentBadgeText(doc)}
                         </span>
                       )}
                     </div>

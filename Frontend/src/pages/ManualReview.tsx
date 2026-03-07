@@ -85,6 +85,7 @@ export default function ManualReview() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [routingId, setRoutingId] = useState<string | null>(null);
+  const [clearingQueue, setClearingQueue] = useState(false);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDeptByDoc, setSelectedDeptByDoc] = useState<Record<string, string>>({});
@@ -242,6 +243,71 @@ export default function ManualReview() {
     load();
   }, []);
 
+  const routeSingleDocument = async (
+    doc: DocumentItem,
+    selectedDepartmentName: string,
+    selectedLabel: string
+  ) => {
+    const normalizedLabel = normalizeLabel(selectedLabel);
+    if (!selectedDepartmentName) {
+      throw new Error("Select a department first.");
+    }
+    if (!normalizedLabel) {
+      throw new Error("Select a label first.");
+    }
+
+    const chosen = getDeptByName(selectedDepartmentName);
+    const existingMetadata = doc.metadata || {};
+    const existingManualReview = existingMetadata.manual_review || {};
+
+    const res = await authFetch(`${API_URL}/api/documents/${doc._id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        department_id: chosen?._id || null,
+        routed_department: selectedDepartmentName,
+        metadata: {
+          ...existingMetadata,
+          manual_review: {
+            ...existingManualReview,
+            required: false,
+            status: "resolved",
+            decided_department: selectedDepartmentName,
+            decided_label: normalizedLabel,
+          },
+          classification: {
+            ...(existingMetadata.classification as Record<string, unknown> || {}),
+            label: normalizedLabel,
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || "Failed to route document");
+    }
+
+    if (doc.python_file_id) {
+      const pyRes = await fetch(`${AI_BASE_URL}/documents/${doc.python_file_id}/route`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          route_to: selectedDepartmentName,
+          label: normalizedLabel,
+          note: "routed_by_manual_review",
+        }),
+      });
+
+      if (!pyRes.ok) {
+        const pyText = await pyRes.text().catch(() => "");
+        throw new Error(pyText || "Failed to sync Python GridFS metadata");
+      }
+    }
+
+    triggerTabPulse(`/department/${toDepartmentSlug(selectedDepartmentName)}`);
+    setDocuments((prev) => prev.filter((d) => d._id !== doc._id));
+  };
+
   const onRouteDocument = async (doc: DocumentItem) => {
     const selectedDepartmentName = (selectedDeptByDoc[doc._id] || "").trim();
     const selectedLabel = normalizeLabel(selectedLabelByDoc[doc._id] || "");
@@ -254,60 +320,9 @@ export default function ManualReview() {
       return;
     }
 
-    const chosen = getDeptByName(selectedDepartmentName);
-
     setRoutingId(doc._id);
     try {
-      const existingMetadata = doc.metadata || {};
-      const existingManualReview = existingMetadata.manual_review || {};
-
-      const res = await authFetch(`${API_URL}/api/documents/${doc._id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          department_id: chosen?._id || null,
-          routed_department: selectedDepartmentName,
-          metadata: {
-            ...existingMetadata,
-            manual_review: {
-              ...existingManualReview,
-              required: false,
-              status: "resolved",
-              decided_department: selectedDepartmentName,
-              decided_label: selectedLabel,
-            },
-            classification: {
-              ...(existingMetadata.classification as Record<string, unknown> || {}),
-              label: selectedLabel,
-            },
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || "Failed to route document");
-      }
-
-      if (doc.python_file_id) {
-        const pyRes = await fetch(`${AI_BASE_URL}/documents/${doc.python_file_id}/route`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            route_to: selectedDepartmentName,
-            label: selectedLabel,
-            note: "routed_by_manual_review",
-          }),
-        });
-
-        if (!pyRes.ok) {
-          const pyText = await pyRes.text().catch(() => "");
-          throw new Error(pyText || "Failed to sync Python GridFS metadata");
-        }
-      }
-
-      triggerTabPulse(`/department/${toDepartmentSlug(selectedDepartmentName)}`);
-
-      setDocuments((prev) => prev.filter((d) => d._id !== doc._id));
+      await routeSingleDocument(doc, selectedDepartmentName, selectedLabel);
     } catch (error) {
       console.error("Manual route error:", error);
       alert("Could not route document.");
@@ -316,12 +331,65 @@ export default function ManualReview() {
     }
   };
 
+  const clearEntireQueue = async () => {
+    if (manualReviewDocs.length === 0 || clearingQueue) return;
+    const confirmed = window.confirm(
+      `Clear entire manual review queue (${manualReviewDocs.length} documents)?`
+    );
+    if (!confirmed) return;
+
+    setClearingQueue(true);
+    try {
+      let successCount = 0;
+      const docsSnapshot = [...manualReviewDocs];
+
+      for (const doc of docsSnapshot) {
+        const review = doc.metadata?.manual_review;
+        const suggestedDepartment = (review?.suggested_department || "").trim();
+        const deptName =
+          (selectedDeptByDoc[doc._id] || "").trim() ||
+          suggestedDepartment ||
+          (typeof doc.department_id === "object" ? (doc.department_id?.name || "").trim() : "") ||
+          "Admin";
+
+        const deptLabels = getLabelsForDepartment(deptName).map((label) => normalizeLabel(label));
+        const predictedLabel = normalizeLabel(review?.predicted_label);
+        const chosenLabel =
+          (selectedLabelByDoc[doc._id] || "").trim() && deptLabels.includes(normalizeLabel(selectedLabelByDoc[doc._id]))
+            ? normalizeLabel(selectedLabelByDoc[doc._id])
+            : (predictedLabel && deptLabels.includes(predictedLabel) ? predictedLabel : (deptLabels[0] || ""));
+
+        if (!deptName || !chosenLabel) continue;
+
+        try {
+          await routeSingleDocument(doc, deptName, chosenLabel);
+          successCount += 1;
+        } catch (err) {
+          console.error(`Failed to clear manual review item ${doc._id}:`, err);
+        }
+      }
+
+      alert(`Cleared ${successCount} of ${docsSnapshot.length} documents from manual review queue.`);
+    } finally {
+      setClearingQueue(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-slate-50 p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Manual Review</h1>
-          <p className="text-gray-600 mt-1">Low-confidence documents are parked here until a user confirms the final department.</p>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Manual Review</h1>
+            <p className="text-gray-600 mt-1">Low-confidence documents are parked here until a user confirms the final department.</p>
+          </div>
+          <button
+            onClick={clearEntireQueue}
+            disabled={loading || clearingQueue || manualReviewDocs.length === 0}
+            className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-60"
+          >
+            {clearingQueue ? "Clearing..." : "Clear Entire Queue"}
+          </button>
         </div>
 
         {loading ? (

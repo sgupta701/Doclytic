@@ -34,6 +34,13 @@ interface DocumentWithDetails {
   file_url?: string;
   file_type?: string;
   python_file_id?: string;
+  routed_departments?: string[];
+  metadata?: {
+    department_predictions?: Array<{ department?: string; score?: number }>;
+    manual_review?: {
+      confidence_by_department?: Record<string, number>;
+    };
+  };
 }
 
 interface Comment {
@@ -102,6 +109,33 @@ export default function DocumentDetail() {
   >("view");
   const [processing, setProcessing] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const predictedDepartments = (() => {
+    if (!document) return [] as Array<{ department: string; score: number }>;
+
+    const scoreMap = new Map<string, number>();
+
+    const confidenceByDepartment =
+      document.metadata?.manual_review?.confidence_by_department || {};
+    Object.entries(confidenceByDepartment).forEach(([department, score]) => {
+      const name = String(department || "").trim();
+      const numericScore = Number(score);
+      if (!name || Number.isNaN(numericScore)) return;
+      scoreMap.set(name, Math.max(scoreMap.get(name) || 0, numericScore));
+    });
+
+    (document.metadata?.department_predictions || []).forEach((item) => {
+      const name = String(item?.department || "").trim();
+      const numericScore = Number(item?.score);
+      if (!name || Number.isNaN(numericScore)) return;
+      scoreMap.set(name, Math.max(scoreMap.get(name) || 0, numericScore));
+    });
+
+    return Array.from(scoreMap.entries())
+      .map(([department, score]) => ({ department, score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+  })();
 
   // redirect to login if not authenticated
   useEffect(() => {
@@ -360,6 +394,22 @@ export default function DocumentDetail() {
                   </div>
                 ) : (
                   <div className="text-sm text-gray-500 mb-4">No summary available</div>
+                )}
+
+                {predictedDepartments.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Predicted Departments</p>
+                    <div className="flex flex-wrap gap-2">
+                      {predictedDepartments.map((item) => (
+                        <span
+                          key={item.department}
+                          className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200"
+                        >
+                          {item.department} ({(item.score * 100).toFixed(1)}%)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
