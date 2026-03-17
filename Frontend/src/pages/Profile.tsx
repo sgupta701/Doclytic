@@ -11,7 +11,7 @@ type Department = {
 };
 
 export default function Profile() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [department, setDepartment] = useState<Department | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'personal' | 'permissions' | 'activity'>('personal');
@@ -27,7 +27,6 @@ export default function Profile() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // local helper to attach JWT
   async function authFetch(url: string, options: RequestInit = {}) {
     const token = localStorage.getItem('token');
     const headers: any = {
@@ -58,12 +57,8 @@ export default function Profile() {
   const loadDepartment = async (deptId: string) => {
     try {
       setLoadingDept(true);
-      // backend provides GET /api/departments - fetch all and find by id
-      const res = await authFetch(`${API_URL}/departments`);
-      if (!res.ok) {
-        console.error('Failed to load departments');
-        return;
-      }
+      const res = await authFetch(`${API_URL}/api/departments`);
+      if (!res.ok) return;
       const data: Department[] = await res.json();
       const found = data.find((d) => d.id === deptId || (d as any)._id === deptId);
       setDepartment(found || null);
@@ -87,22 +82,27 @@ export default function Profile() {
         responsibilities: formData.responsibilities
       };
 
-      const res = await authFetch(`${API_URL}/profile`, {
+      const res = await authFetch(`${API_URL}/api/profile/me`, {
         method: 'PUT',
         body: JSON.stringify(payload)
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        const message = data?.message || 'Failed to save profile';
-        throw new Error(message);
-      }
+      if (!res.ok) throw new Error(data?.message || 'Failed to save profile');
 
-      // profile in context will refresh on reload; here we just update local state and stop editing
+      // Update formData from response immediately
+      setFormData({
+        full_name: data.full_name || '',
+        designation: data.designation || '',
+        contact: data.contact || '',
+        working_hours: data.working_hours || '',
+        responsibilities: data.responsibilities || ''
+      });
+
       setIsEditing(false);
-      // If your AuthContext automatically fetches profile changes on some event, great.
-      // Otherwise you can do a full reload to ensure context sync:
-      window.location.reload();
+
+      // Refresh context so header/avatar update everywhere
+      await refreshProfile();
     } catch (err) {
       console.error('Error saving profile', err);
       alert((err as any).message || 'Failed to save profile');
@@ -147,19 +147,19 @@ export default function Profile() {
                   {(profile as any).avatar_url ? (
                     <img
                       src={(profile as any).avatar_url}
-                      alt={(profile as any).full_name}
+                      alt={formData.full_name}
                       className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
                     />
                   ) : (
                     <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-blue-600 flex items-center justify-center">
                       <span className="text-white text-4xl font-bold">
-                        {(profile as any).full_name?.charAt(0).toUpperCase() || 'U'}
+                        {formData.full_name?.charAt(0).toUpperCase() || 'U'}
                       </span>
                     </div>
                   )}
                   <div className="mb-2">
-                    <h1 className="text-3xl font-bold text-gray-900">{(profile as any).full_name}</h1>
-                    <p className="text-gray-600">{(profile as any).designation || 'User'}</p>
+                    <h1 className="text-3xl font-bold text-gray-900">{formData.full_name}</h1>
+                    <p className="text-gray-600">{formData.designation || 'User'}</p>
                   </div>
                 </div>
 
@@ -214,6 +214,7 @@ export default function Profile() {
 
               {activeTab === 'personal' && (
                 <div className="grid md:grid-cols-2 gap-6">
+                  {/* Full Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -229,10 +230,11 @@ export default function Profile() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     ) : (
-                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{(profile as any).full_name}</p>
+                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{formData.full_name}</p>
                     )}
                   </div>
 
+                  {/* Email — always read-only */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -243,6 +245,7 @@ export default function Profile() {
                     <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{(profile as any).email}</p>
                   </div>
 
+                  {/* Designation */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -258,10 +261,11 @@ export default function Profile() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     ) : (
-                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{(profile as any).designation || 'Not specified'}</p>
+                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{formData.designation || 'Not specified'}</p>
                     )}
                   </div>
 
+                  {/* Department — read-only */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -274,6 +278,7 @@ export default function Profile() {
                     </p>
                   </div>
 
+                  {/* Contact */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -289,10 +294,11 @@ export default function Profile() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     ) : (
-                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{(profile as any).contact || 'Not specified'}</p>
+                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{formData.contact || 'Not specified'}</p>
                     )}
                   </div>
 
+                  {/* Working Hours */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -308,10 +314,11 @@ export default function Profile() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     ) : (
-                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{(profile as any).working_hours}</p>
+                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{formData.working_hours || 'Not specified'}</p>
                     )}
                   </div>
 
+                  {/* Employee ID — read-only */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -322,6 +329,7 @@ export default function Profile() {
                     <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{(profile as any).employee_id || 'Not assigned'}</p>
                   </div>
 
+                  {/* Last Login — read-only */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -330,10 +338,13 @@ export default function Profile() {
                       </div>
                     </label>
                     <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">
-                      {new Date((profile as any).last_login).toLocaleString()}
+                      {(profile as any).last_login
+                        ? new Date((profile as any).last_login).toLocaleString()
+                        : 'Not available'}
                     </p>
                   </div>
 
+                  {/* Responsibilities */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center space-x-2">
@@ -350,7 +361,7 @@ export default function Profile() {
                       />
                     ) : (
                       <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg whitespace-pre-wrap">
-                        {(profile as any).responsibilities || 'No responsibilities assigned'}
+                        {formData.responsibilities || 'No responsibilities assigned'}
                       </p>
                     )}
                   </div>
@@ -372,35 +383,16 @@ export default function Profile() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">View Documents</p>
-                        <p className="text-sm text-gray-600">Access and read documents</p>
+                    {['View Documents', 'Upload Documents', 'Share Documents'].map((perm) => (
+                      <div key={perm} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{perm}</p>
+                        </div>
+                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                          Enabled
+                        </span>
                       </div>
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                        Enabled
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">Upload Documents</p>
-                        <p className="text-sm text-gray-600">Create and upload new documents</p>
-                      </div>
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                        Enabled
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">Share Documents</p>
-                        <p className="text-sm text-gray-600">Share documents with other users</p>
-                      </div>
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                        Enabled
-                      </span>
-                    </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -414,7 +406,9 @@ export default function Profile() {
                       <div className="flex-1">
                         <p className="text-sm text-gray-900">Logged into the system</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {new Date((profile as any).last_login).toLocaleString()}
+                          {(profile as any).last_login
+                            ? new Date((profile as any).last_login).toLocaleString()
+                            : 'Not available'}
                         </p>
                       </div>
                     </div>

@@ -1,13 +1,15 @@
 // src/routes/mailRoutes.js
 import express from "express";
-import auth from '../middleware/auth.js';
+import auth from "../middleware/auth.js";
 import {
   authViaGoogle,
   googleCallback,
   fetchMailAttachments,
   listMailFiles,
   downloadMailFile,
-  getMailFile, // ✅ Add this import
+  getMailFile,
+  deleteMailFile,
+  generateGmailSummary,
 } from "../controllers/mailController.js";
 
 const router = express.Router();
@@ -19,7 +21,9 @@ router.get("/google/callback", googleCallback);
 // Protected routes (authentication required)
 router.post("/fetch", auth, fetchMailAttachments);
 router.get("/files", auth, listMailFiles);
-router.get("/file/:id", auth, getMailFile); // ✅ Get single file details
-router.get("/download/:id", auth, downloadMailFile); // ✅ Download file
+router.get("/file/:id", auth, getMailFile);
+router.delete("/file/:id", auth, deleteMailFile);
+router.get("/download/:id", auth, downloadMailFile);
+router.post("/generate-summary/:fileId", auth, generateGmailSummary);
 
 export default router;

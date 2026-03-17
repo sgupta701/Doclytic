@@ -3,7 +3,32 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
 import { Upload } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || "http://127.0.0.1:8000";
+
+interface IngestResponse {
+  summary?: string;
+  extraction?: {
+    sender?: { name?: string | null; category?: string };
+    document_type?: string;
+    selected_deadline?: string | null;
+    urgency_indicators?: string[];
+    extraction_model_version?: string;
+    extraction_confidence?: number;
+  };
+  priority?: {
+    priority_score?: number;
+    priority_level?: "Low" | "Medium" | "High" | "Critical";
+    breakdown?: {
+      sender_weight?: number;
+      deadline_score?: number;
+      urgency_score?: number;
+      doc_type_weight?: number;
+    };
+    escalation?: { applied?: boolean; reason?: string };
+    engine_version?: string;
+  };
+}
 
 // --- UNIVERSAL AUTH FETCH (fixes 401 for Google + email login) ---
 async function authFetch(url: string, options: RequestInit = {}) {
@@ -47,12 +72,47 @@ export default function DocumentUpload() {
     formData.append("summary", summary);
 
     try {
-      const res = await authFetch(`${API_URL}/documents`, {
+      const res = await authFetch(`${API_URL}/api/documents`, {
         method: "POST",
         body: formData, // IMPORTANT: do NOT add content-type manually
       });
 
       if (res.ok) {
+        const uploadedDoc = await res.json();
+
+        try {
+          const aiFormData = new FormData();
+          aiFormData.append("file", file);
+          const aiRes = await fetch(`${AI_BASE_URL}/ingest`, {
+            method: "POST",
+            body: aiFormData,
+          });
+
+          if (aiRes.ok) {
+            const aiData = (await aiRes.json()) as IngestResponse;
+            const priorityLevel = aiData.priority?.priority_level || "Medium";
+            const urgencyFromPriority =
+              priorityLevel === "Critical" || priorityLevel === "High"
+                ? "high"
+                : priorityLevel === "Medium"
+                ? "medium"
+                : "low";
+
+            await authFetch(`${API_URL}/api/documents/${uploadedDoc._id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                summary: aiData.summary || summary,
+                urgency: urgencyFromPriority,
+                ...(aiData.extraction ? { extraction: aiData.extraction } : {}),
+                ...(aiData.priority ? { priority: aiData.priority } : {}),
+              }),
+            });
+          }
+        } catch (aiErr) {
+          console.error("Post-upload priority processing failed:", aiErr);
+        }
+
         alert("Document uploaded successfully!");
         navigate("/dashboard");
       } else {

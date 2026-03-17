@@ -1,7 +1,7 @@
 // src/pages/GmailDocument.tsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Download, Mail, Clock, User, FileText } from "lucide-react";
+import { ArrowLeft, Download, Mail, Clock, User, FileText, Sparkles } from "lucide-react";
 import DashboardLayout from "../components/DashboardLayout";
 import DocumentViewer from "../components/DocumentViewer"; // ✅ Import the viewer
 
@@ -15,7 +15,10 @@ interface GmailFile {
     from: string;
     subject: string;
     messageId: string;
+    summary?: string; // ✅ Add summary to metadata
   };
+  summary?: string; // ✅ Add summary field
+
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -48,6 +51,7 @@ export default function GmailDocument() {
   const [downloading, setDownloading] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
+  const getDisplayFilename = (name: string) => name.replace(/^\d{10,}[-_]+/, "");
 
   useEffect(() => {
     loadFileDetails();
@@ -69,7 +73,7 @@ export default function GmailDocument() {
         navigate("/dashboard");
         return;
       }
-      
+
       const fileData = await res.json();
       setFile(fileData);
     } catch (error) {
@@ -83,7 +87,7 @@ export default function GmailDocument() {
 
   const handleDownload = async () => {
     if (!file) return;
-    
+
     setDownloading(true);
     try {
       const res = await authFetch(`${API_URL}/api/mail/download/${file._id}`);
@@ -91,12 +95,12 @@ export default function GmailDocument() {
         alert("Failed to download file");
         return;
       }
-      
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = file.filename;
+      a.download = getDisplayFilename(file.filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -111,14 +115,14 @@ export default function GmailDocument() {
 
   const handlePostComment = () => {
     if (!newComment.trim()) return;
-    
+
     const comment = {
       id: Date.now().toString(),
       text: newComment,
       author: "Current User",
       timestamp: new Date().toISOString(),
     };
-    
+
     setComments([...comments, comment]);
     setNewComment("");
   };
@@ -169,7 +173,7 @@ export default function GmailDocument() {
 
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-2">{file.filename}</h1>
+              <h1 className="text-3xl font-bold mb-2">{getDisplayFilename(file.filename)}</h1>
               <p className="text-gray-600">
                 <Clock className="w-4 h-4 inline mr-1" />
                 {new Date(file.uploadDate).toLocaleDateString("en-US", {
@@ -194,56 +198,45 @@ export default function GmailDocument() {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - File Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Priority Badge */}
             <div className="bg-white p-6 rounded-xl shadow-sm border">
-              <span className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-semibold">
+              {/* <span className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-semibold">
                 GMAIL ATTACHMENT
-              </span>
+              </span> */}
 
-              {/* Email Subject */}
-              {file.metadata?.subject && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">EMAIL SUBJECT</h3>
-                  <p className="text-gray-900 border-l-4 border-blue-500 pl-4 py-2">
-                    {file.metadata.subject}
-                  </p>
-                </div>
-              )}
+              {/* Email Subject + Sender in Single Line */}
+{(file.metadata?.subject || file.metadata?.from) && (
+  <div className="mt-1 mb-4">
+    <div className="flex items-center gap-4 flex-wrap text-sm text-gray-800">
+      
+      {file.metadata?.subject && (
+        <span className="font-semibold">
+          Subject:{" "}
+          <span className="font-normal text-gray-700">
+            {file.metadata.subject}
+          </span>
+        </span>
+      )}
 
-              {/* File Info */}
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">FILE SIZE</h3>
-                  <p className="text-gray-900">{(file.length / 1024).toFixed(2)} KB</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">UPLOAD DATE</h3>
-                  <p className="text-gray-900">
-                    {new Date(file.uploadDate).toLocaleString()}
-                  </p>
-                </div>
-              </div>
+      {file.metadata?.from && (
+        <span className="flex items-center gap-2">
+          <Mail className="w-4 h-4 text-blue-600" />
+          <span className="font-normal">{file.metadata.from}</span>
+        </span>
+      )}
 
-              {/* Sender Info */}
-              {file.metadata?.from && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">FROM</h3>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Mail className="w-5 h-5 text-blue-600" />
-                    <span className="text-gray-900">{file.metadata.from}</span>
-                  </div>
-                </div>
-              )}
+    </div>
+  </div>
+)}
 
-              {/* Message ID */}
-              {file.metadata?.messageId && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">MESSAGE ID</h3>
-                  <p className="text-gray-600 text-sm font-mono bg-gray-50 p-3 rounded-lg break-all">
-                    {file.metadata.messageId}
-                  </p>
+
+
+
+              {file.summary && (
+                <div className="bg-blue-50 border-l-4 border-blue-600 p-4 mb-4">
+                  <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2"></h3>
+                  <p className="text-sm text-gray-700">{file.summary}</p>
                 </div>
               )}
             </div>
@@ -252,7 +245,7 @@ export default function GmailDocument() {
             <div className="bg-white rounded-xl shadow-sm border" style={{ height: "600px" }}>
               <DocumentViewer
                 fileId={file._id}
-                fileName={file.filename}
+                fileName={getDisplayFilename(file.filename)}
                 isGmailAttachment={true}
               />
             </div>

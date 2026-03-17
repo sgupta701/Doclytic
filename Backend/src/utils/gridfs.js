@@ -1,35 +1,39 @@
-// src/utils/createfs.js
 import mongoose from "mongoose";
 
-let gfs;
-let readyPromise;
+const buckets = new Map();
+const readyPromises = new Map();
 
-/**
- * Initialize GridFSBucket after MongoDB connection
- */
+const getOrCreateBucket = (bucketName) => {
+  if (!mongoose.connection.db) return null;
+  if (!buckets.has(bucketName)) {
+    buckets.set(
+      bucketName,
+      new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName })
+    );
+    console.log(`GridFS initialized for bucket: ${bucketName}`);
+  }
+  return buckets.get(bucketName);
+};
+
 mongoose.connection.on("connected", () => {
-  gfs = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-    bucketName: "mailUploads",
-  });
-  console.log("✅ GridFS initialized");
+  getOrCreateBucket("mailUploads");
 });
 
-/**
- * Get GridFSBucket instance
- */
-export const getGFS = async () => {
-  if (gfs) return gfs;
+export const getGFS = async (bucketName = "mailUploads") => {
+  const existing = getOrCreateBucket(bucketName);
+  if (existing) return existing;
 
-  if (!readyPromise) {
-    readyPromise = new Promise((resolve, reject) => {
-      if (mongoose.connection.readyState === 1 && gfs) {
-        resolve(gfs);
-      } else {
-        mongoose.connection.once("connected", () => resolve(gfs));
+  if (!readyPromises.has(bucketName)) {
+    readyPromises.set(
+      bucketName,
+      new Promise((resolve, reject) => {
+        mongoose.connection.once("connected", () =>
+          resolve(getOrCreateBucket(bucketName))
+        );
         mongoose.connection.once("error", (err) => reject(err));
-      }
-    });
+      })
+    );
   }
 
-  return readyPromise;
+  return readyPromises.get(bucketName);
 };

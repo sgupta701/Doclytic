@@ -1,24 +1,11 @@
 import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
 
 dotenv.config();
 
 const provider = 'local'; // Force local provider
 
-const localStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = process.env.UPLOADS_DIR || './src/uploads';
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
-  }
-});
+const localStorage = multer.memoryStorage();
 
 const upload = multer({
   storage: localStorage,

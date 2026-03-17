@@ -5,8 +5,13 @@ const DocumentSchema = new mongoose.Schema({
   content: String,
   urgency: { type: String, enum: ["high", "medium", "low"], default: "medium" },
   department_id: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
+  routed_department: String,
+  routed_departments: [String],
   uploaded_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   file_url: String,
+  file_type: String,
+  storage_file_id: String,
+  python_file_id: String,
   metadata: Object
 }, { timestamps: true });
 

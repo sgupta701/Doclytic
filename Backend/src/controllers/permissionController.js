@@ -34,3 +34,23 @@ export const listPermissionsForDocument = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+export const revokePermission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await DocumentPermission.findById(id);
+    if (!existing) return res.status(404).json({ message: 'Permission not found' });
+
+    const doc = await Document.findById(existing.document_id);
+    if (!doc) return res.status(404).json({ message: 'Document not found' });
+    if (doc.uploaded_by.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Only owner can revoke permissions' });
+    }
+
+    await DocumentPermission.deleteOne({ _id: id });
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

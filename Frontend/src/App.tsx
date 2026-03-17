@@ -7,7 +7,10 @@ import Dashboard from './pages/Dashboard';
 import DocumentDetail from './pages/DocumentDetail';
 import Profile from './pages/Profile';
 import DocumentUpload from './pages/DocumentUpload';
-import GmailDocument from './pages/gmailDocument';
+import GmailDocument from './pages/GmailDocument';
+import ComplianceCalendar from './components/ComplianceCalendar.tsx';
+import DepartmentDocuments from './pages/DepartmentDocuments';
+import ManualReview from './pages/ManualReview';
 
 function App() {
   return (
@@ -27,6 +30,13 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <ComplianceCalendar/>
+              </ProtectedRoute>
+            }/>
           <Route
             path="/document/:id"
             element={
@@ -57,6 +67,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <GmailDocument />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/department/:slug"
+            element={
+              <ProtectedRoute>
+                <DepartmentDocuments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manual-review"
+            element={
+              <ProtectedRoute>
+                <ManualReview />
               </ProtectedRoute>
             }
           />
