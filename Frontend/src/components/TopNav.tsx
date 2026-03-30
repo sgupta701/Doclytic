@@ -146,13 +146,12 @@ const translateText = async (text: string) => {
       <div className="flex items-center justify-between">
 
         {/* Logo */}
-        <div className="flex items-center gap-6">
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            UDIS
-          </h1>
-          <span className="text-gray-700 font-medium hidden md:block">
-            Document Intelligence Platform
-          </span>
+        <div className="flex items-center shrink-0">
+          <img 
+            src="/logo.png" 
+            alt="Doclytic" 
+            className="h-12 md:h-16 w-auto max-w-none shrink-0 object-contain drop-shadow-sm" 
+          />
         </div>
 
         <div className="flex items-center gap-4">
