@@ -46,6 +46,7 @@ Doclytic is a unified document ecosystem that uses OCR and deep learning to extr
 ### RAG based chat
 
 ![RAG Screenshot](./screenshots/rag.png)
+
 ---
 
 ## 🎥 Demo
