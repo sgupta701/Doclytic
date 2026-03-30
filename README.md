@@ -4,22 +4,62 @@ Doclytic is a unified document ecosystem that uses OCR and deep learning to extr
 
 ---
 
+## 🎯 Key Features
+
+* **OCR-Based Document Processing** – Extract text from scanned documents and images
+* **AI-Powered Classification** – Automatically categorize documents
+* **Smart Summarization** – Generate concise summaries using LLMs
+* **Automated Routing** – Send documents to relevant departments
+* **RAG Pipeline** – Context-aware querying over documents
+* **Authentication System** – Secure login with JWT & Google OAuth
+* **Real-time Updates** – WebSocket integration for live updates
+
+---
+
+## 📸 Screenshots
+
+### 🖥 Dashboard
+
+![Dashboard Screenshot](./screenshots/dashboard.png)
+
+### 📤 Document Upload
+
+![Upload Screenshot](./screenshots/upload.png)
+
+### 📊 AI Analysis Result
+
+![Analysis Screenshot](./screenshots/analysis.png)
+
+### 🔎 Search / RAG Interface
+
+![RAG Screenshot](./screenshots/rag.png)
+
+---
+
+## 🎥 Demo
+
+👉 **Watch Full Working Demo:**
+
+[Google Drive Demo Link](PASTE_YOUR_DRIVE_LINK_HERE)
+
+---
+
 ## 🛠 Prerequisites
 
-- Node.js (v18+)
-- Python (3.9+)
-- MongoDB (Local or Atlas)
-- API Keys: Gemini, Groq, and Google Cloud Console
+Node.js (v18+)
+Python (3.9+)
+MongoDB (Local or Atlas)
+API Keys: Gemini, Groq, and Google Cloud Console
 
 ---
 
 ## ⚙️ Environment Setup
 
-You must create `.env` files in both the Backend and Frontend directories.
+You must create .env files in both the Backend and Frontend directories.
 
-### 1. Backend Environment (`/Backend/.env`)
+### 1. Backend Environment (/Backend/.env)
 
-```env
+```
 # Database & Auth
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_random_secret_string
@@ -38,9 +78,9 @@ GOOGLE_CLIENT_SECRET=your_secret
 GOOGLE_REDIRECT_URI=http://localhost:5000/auth/google/callback
 ```
 
-### 2. Frontend Environment (`/Frontend/.env`)
+### 2. Frontend Environment (/Frontend/.env)
 
-```env
+```
 VITE_API_URL=http://localhost:5000
 ```
 
@@ -52,7 +92,7 @@ To run this system, you need to open three separate terminals.
 
 ### 🟦 Terminal 1: Node.js Backend (Auth & Logic)
 
-```bash
+```
 cd Backend
 npm install
 npm run dev
@@ -60,7 +100,7 @@ npm run dev
 
 ### 🟨 Terminal 2: Python Backend (AI & RAG)
 
-```bash
+```
 cd Backend
 
 # Create and activate virtual environment
@@ -78,7 +118,7 @@ uvicorn app:app --reload --port 8000
 
 ### 🟩 Terminal 3: React Frontend (UI)
 
-```bash
+```
 cd Frontend
 npm install
 npm run dev
@@ -88,8 +128,10 @@ npm run dev
 
 ## 🏗 System Architecture
 
-The project uses a **Hybrid Backend Strategy**:
+The project uses a Hybrid Backend Strategy:
 
-- **Node.js (Express):** Handles User Authentication, MongoDB CRUD, and WebSockets.
-- **Python (FastAPI):** Handles RAG (Retrieval-Augmented Generation), Gemini/Groq AI processing, and heavy document analysis.
-- **React (Vite):** Provides a modern, responsive interface using Tailwind CSS and Framer Motion.
+Node.js (Express): Handles User Authentication, MongoDB CRUD, and WebSockets.
+Python (FastAPI): Handles RAG (Retrieval-Augmented Generation), Gemini/Groq AI processing, and heavy document analysis.
+React (Vite): Provides a modern, responsive interface using Tailwind CSS and Framer Motion.
+
+---
