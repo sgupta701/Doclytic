@@ -18,22 +18,34 @@ Doclytic is a unified document ecosystem that uses OCR and deep learning to extr
 
 ## 📸 Screenshots
 
-### 🖥 Dashboard
+### Login Page
 
-![Dashboard Screenshot](./screenshots/dashboard.png)
+![Login Screenshot](./screenshots/dashboard.png)
 
-### 📤 Document Upload
+### Dashboard
 
-![Upload Screenshot](./screenshots/upload.png)
+![Dashboard1 Screenshot](./screenshots/dashboard.png)
+![Dashboard2 Screenshot](./screenshots/dashboard.png)
 
-### 📊 AI Analysis Result
+### Summary (Quick View + Multidoc)
 
-![Analysis Screenshot](./screenshots/analysis.png)
+![summary Screenshot](./screenshots/dashboard.png)
 
-### 🔎 Search / RAG Interface
+### Compliance Calendar
+
+![Compliance_Calendar Screenshot](./screenshots/upload.png)
+
+### Gmail Fetch
+
+![Gmail Screenshot](./screenshots/analysis.png)
+
+### Document Detail Dashboard
+
+![DDD Screenshot](./screenshots/rag.png)
+
+### RAG based chat
 
 ![RAG Screenshot](./screenshots/rag.png)
-
 ---
 
 ## 🎥 Demo
