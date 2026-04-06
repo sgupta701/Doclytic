@@ -108,7 +108,7 @@ To run this system, you need to open three separate terminals.
 ```
 cd Backend
 npm install
-npm run dev
+node src/server.js
 ```
 
 ### 🟨 Terminal 2: Python Backend (AI & RAG)
