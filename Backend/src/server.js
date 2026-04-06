@@ -21,6 +21,7 @@ import permissionRoutes from "./routes/permissionRoutes.js";
 import fs from "fs";
 import http from "http";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use(
   cors({
     origin: origins,
     credentials: true,
+    exposedHeaders: ["Content-Disposition", "Content-Type", "X-Original-Filename"],
   })
 );
 
@@ -56,6 +58,17 @@ export const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
+  const token = socket.handshake.auth?.token;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.join(`user:${decoded.id}`);
+    } catch (err) {
+      console.error("Socket auth error:", err.message);
+    }
+  }
+
   console.log("Client connected:", socket.id);
 
   socket.on("disconnect", () => {

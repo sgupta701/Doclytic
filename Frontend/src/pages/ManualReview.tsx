@@ -98,11 +98,11 @@ export default function ManualReview() {
 
   const FALLBACK_DEPARTMENT_NAMES = ["Finance", "HR", "Legal", "Operations", "Procurement", "Admin"];
 
-  const normalizeName = (value?: string) =>
+  const normalizeName = (value?: string | null) =>
     (value || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const normalizeLabel = (value?: string) =>
+  const normalizeLabel = (value?: string | null) =>
     (value || "").trim().toLowerCase().replace(/\s+/g, "_");
-  const prettifyLabel = (value?: string) =>
+  const prettifyLabel = (value?: string | null) =>
     (value || "")
       .split("_")
       .filter(Boolean)
@@ -110,27 +110,6 @@ export default function ManualReview() {
       .join(" ");
   const toDepartmentSlug = (departmentName: string) =>
     departmentName.trim().toLowerCase().replace(/\s+/g, "-");
-
-  const getDeptIdByName = (name?: string | null, sourceDepartments: Department[] = departments) => {
-    const wanted = normalizeName(name || "");
-    if (!wanted) return "";
-    const match = sourceDepartments.find((d) => normalizeName(d.name) === wanted);
-    if (match?._id) return match._id;
-
-    // Common fallback mappings from AI suggestion labels to actual department names.
-    const alias: Record<string, string> = {
-      operations: "admin",
-      operation: "admin",
-      finances: "finance",
-    };
-    const aliasTarget = alias[wanted];
-    if (aliasTarget) {
-      const aliasMatch = sourceDepartments.find((d) => normalizeName(d.name) === aliasTarget);
-      if (aliasMatch?._id) return aliasMatch._id;
-    }
-
-    return match?._id || "";
-  };
 
   const getDeptByName = (name?: string | null, sourceDepartments: Department[] = departments) => {
     const wanted = normalizeName(name || "");
@@ -432,8 +411,8 @@ export default function ManualReview() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-slate-50 p-8">
-        <div className="mb-8 flex items-center justify-between gap-4">
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Manual Review</h1>
             <p className="text-gray-600 mt-1">Low-confidence documents are parked here until a user confirms the final department.</p>
@@ -503,7 +482,7 @@ export default function ManualReview() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0 w-full">
                       <select
                         value={selectedDeptByDoc[doc._id] || ""}
                         onChange={(e) => {
@@ -518,7 +497,7 @@ export default function ManualReview() {
                           setSelectedDeptByDoc((prev) => ({ ...prev, [doc._id]: newDept }));
                           setSelectedLabelByDoc((prev) => ({ ...prev, [doc._id]: nextLabel }));
                         }}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       >
                         <option value="">Choose department</option>
                         {departmentOptions.map((name) => (
@@ -533,7 +512,7 @@ export default function ManualReview() {
                         onChange={(e) =>
                           setSelectedLabelByDoc((prev) => ({ ...prev, [doc._id]: normalizeLabel(e.target.value) }))
                         }
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm min-w-[220px]"
+                        className="w-full sm:min-w-[220px] px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         disabled={!selectedDeptByDoc[doc._id]}
                       >
                         <option value="">
@@ -552,7 +531,7 @@ export default function ManualReview() {
                       <button
                         onClick={() => onRouteDocument(doc)}
                         disabled={routingId === doc._id || dismissingId === doc._id}
-                        className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60 inline-flex items-center gap-2"
+                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60 inline-flex justify-center items-center gap-2"
                       >
                         <ArrowRight className="w-4 h-4" />
                         {routingId === doc._id ? "Routing..." : "Route"}

@@ -129,7 +129,7 @@ export default function Sidebar() {
       {/* MOBILE TOGGLE BUTTON */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 bg-white p-2 rounded-lg shadow"
+        className="fixed left-3 top-3 z-50 rounded-xl border border-slate-200 bg-white/95 p-2.5 shadow-lg backdrop-blur md:hidden"
       >
         <Menu className="w-6 h-6" />
       </button>
@@ -137,52 +137,64 @@ export default function Sidebar() {
       {/* SIDEBAR */}
       <aside
         className={`
-    fixed md:sticky
-    top-[73px]
-    left-0
-    h-[calc(100vh-73px)]
-    bg-blue-100/60 backdrop-blur-md 
-    border-r border-blue-200
-    transition-all duration-300
-    ${collapsed ? "w-20" : "w-64"}
-    ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-  `}
-
+          fixed top-[73px] left-0 h-[calc(100vh-73px)] bg-[linear-gradient(180deg,rgba(239,246,255,0.95)_0%,rgba(232,240,255,0.94)_100%)]
+          backdrop-blur-xl border-r border-blue-200/80 transition-all duration-300
+          ${collapsed ? "w-20" : "w-64"}
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          md:translate-x-0 md:z-auto
+          z-50
+        `}
       >
         {/* HEADER */}
-        <div className="p-4 border-b flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-blue-200/70 p-4">
           {!collapsed ? (
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-center text-lg font-semibold shadow">
-                {profile?.full_name?.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">
+            <div className="flex items-center space-x-3 min-w-0">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name || "User"}
+                  className="h-10 w-10 rounded-full object-cover shadow"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-lg font-semibold text-white shadow">
+                  {profile?.full_name?.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900">
                   {profile?.full_name}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="truncate text-xs text-gray-500">
                   {profile?.designation || "User"}
                 </p>
               </div>
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
-                {profile?.full_name?.charAt(0).toUpperCase()}
-              </div>
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name || "User"}
+                  className="w-8 h-8 rounded-full object-cover shadow"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                  {profile?.full_name?.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
           )}
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition"
+            className="rounded-lg p-2 transition hover:bg-white/70"
           >
             {collapsed ? <Menu size={20} /> : <X size={20} />}
           </button>
         </div>
 
         {/* NAVIGATION */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 space-y-2 overflow-y-auto p-4">
           {/* Main */}
           {menuItems.map((item) => (
             <NavItem key={item.path} item={item} />
@@ -190,8 +202,8 @@ export default function Sidebar() {
 
           {/* Departments */}
           {!collapsed && (
-            <div className="pt-4 mt-4 border-t">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <div className="mt-4 border-t border-blue-200/70 pt-4">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
                 Departments
               </h3>
             </div>
@@ -202,7 +214,7 @@ export default function Sidebar() {
           ))}
 
           {/* Settings */}
-          <div className="pt-4 mt-4 border-t">
+          <div className="mt-4 border-t border-blue-200/70 pt-4">
             <NavItem
               item={{
                 icon: Settings,
@@ -214,7 +226,7 @@ export default function Sidebar() {
         </nav>
 
         {/* FOOTER */}
-        <div className="p-4 border-t">
+        {/* <div className="p-4 border-t">
           <button
             onClick={signOut}
             className="w-full flex items-center space-x-3 p-3 rounded-xl text-red-600 hover:bg-red-50 transition"
@@ -224,7 +236,7 @@ export default function Sidebar() {
               <span className="text-sm font-medium">Logout</span>
             )}
           </button>
-        </div>
+        </div> */}
       </aside>
     </>
   );

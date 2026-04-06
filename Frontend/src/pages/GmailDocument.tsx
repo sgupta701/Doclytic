@@ -10,11 +10,14 @@ interface GmailFile {
   filename: string;
   length: number;
   uploadDate: string;
+  contentType?: string;
   metadata?: {
     userId: string;
     from: string;
     subject: string;
     messageId: string;
+    contentType?: string;
+    originalFilename?: string;
     summary?: string; // ✅ Add summary to metadata
   };
   summary?: string; // ✅ Add summary field
@@ -171,7 +174,7 @@ export default function GmailDocument() {
             Back
           </button>
 
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <h1 className="text-3xl font-bold mb-2">{getDisplayFilename(file.filename)}</h1>
               <p className="text-gray-600">
@@ -187,7 +190,7 @@ export default function GmailDocument() {
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition disabled:opacity-50"
             >
               <Download className="w-5 h-5" />
               {downloading ? "Downloading..." : "Download"}
@@ -242,10 +245,11 @@ export default function GmailDocument() {
             </div>
 
             {/* Preview Section */}
-            <div className="bg-white rounded-xl shadow-sm border" style={{ height: "600px" }}>
+            <div className="bg-white rounded-xl shadow-sm border min-h-[28rem] lg:min-h-[38rem]">
               <DocumentViewer
                 fileId={file._id}
-                fileName={getDisplayFilename(file.filename)}
+                fileName={getDisplayFilename(file.metadata?.originalFilename || file.filename)}
+                fileType={file.metadata?.contentType || file.contentType}
                 isGmailAttachment={true}
               />
             </div>
@@ -253,7 +257,7 @@ export default function GmailDocument() {
 
           {/* Right Column - Comments */}
           <div className="lg:col-span-1">
-            <div className="bg-white p-6 rounded-xl shadow-sm border sticky top-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border lg:sticky lg:top-6">
               <h3 className="text-lg font-semibold mb-4">Comments</h3>
 
               {/* Comment Input */}
