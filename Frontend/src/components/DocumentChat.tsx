@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SendHorizontal, Sparkles } from 'lucide-react';
 import { askDocumentQuestion } from '../api/ragAPI';
 
 interface DocumentChatProps {
@@ -21,8 +22,8 @@ const DocumentChat: React.FC<DocumentChatProps> = ({ documentId }) => {
 
         try {
             const response = await askDocumentQuestion(documentId, userMessage);
-
-            setMessages(prev => [...prev, { sender: 'ai', text: response.answer }]);
+            const answer = response?.answer || response?.message || "I couldn't get a reply from the assistant.";
+            setMessages(prev => [...prev, { sender: 'ai', text: answer }]);
         } catch (error) {
             console.error("Chat error:", error);
             setMessages(prev => [...prev, { sender: 'ai', text: "Sorry, I encountered an error connecting to the AI server." }]);
@@ -38,58 +39,77 @@ const DocumentChat: React.FC<DocumentChatProps> = ({ documentId }) => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-white w-full">
-            <div className="p-4 border-b bg-slate-50 font-semibold text-gray-700 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                AI Document Assistant
+        <div className="flex h-full w-full flex-col bg-[linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)]">
+            <div className="border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                        <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Assistant Ready</p>
+                        <div className="font-semibold text-gray-800 flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                            AI Document Assistant
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            {/* Chat History Area */}
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-white">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-5">
                 {messages.length === 0 ? (
-                    <div className="text-gray-400 text-sm text-center mt-10">
-                        Ask me anything about this document!
+                    <div className="mt-8 rounded-3xl border border-dashed border-slate-200 bg-white/90 p-6 text-center shadow-sm">
+                        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                            <Sparkles className="h-5 w-5" />
+                        </div>
+                        <p className="text-sm font-medium text-slate-700">Ask me anything about this document</p>
+                        <p className="mt-2 text-sm text-slate-400">
+                            Try asking for a summary, important dates, risks, or action items.
+                        </p>
                     </div>
                 ) : (
-                    messages.map((msg, idx) => (
+                    <div className="flex flex-col gap-4">
+                    {messages.map((msg, idx) => (
                         <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`p-3 rounded-2xl max-w-[85%] text-sm shadow-sm ${
+                            <div className={`max-w-[88%] rounded-2xl p-3 text-sm shadow-sm ${
                                 msg.sender === 'user' 
-                                ? 'bg-blue-600 text-white rounded-br-none' 
-                                : 'bg-slate-100 text-slate-800 border border-slate-200 rounded-bl-none'
+                                ? 'rounded-br-none bg-blue-600 text-white' 
+                                : 'rounded-bl-none border border-slate-200 bg-white text-slate-800'
                             }`}>
                                 {msg.text}
                             </div>
                         </div>
-                    ))
+                    ))}
+                    </div>
                 )}
                 {isLoading && (
-                    <div className="flex justify-start">
-                        <div className="bg-slate-100 text-slate-500 text-sm p-3 rounded-2xl rounded-bl-none animate-pulse border border-slate-200 shadow-sm">
+                    <div className="mt-4 flex justify-start">
+                        <div className="animate-pulse rounded-2xl rounded-bl-none border border-slate-200 bg-white p-3 text-sm text-slate-500 shadow-sm">
                             Thinking...
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 border-t bg-white flex gap-2">
+            <div className="border-t border-slate-200 bg-white/95 p-4 backdrop-blur">
+                <div className="flex gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
                 <input
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyPress}
                     placeholder="Ask a question..."
-                    className="flex-1 p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    className="flex-1 rounded-xl bg-transparent px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
                     disabled={isLoading}
                 />
                 <button
                     onClick={handleSend}
                     disabled={isLoading || !inputValue.trim()}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
+                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
+                    <SendHorizontal className="h-4 w-4" />
                     Send
                 </button>
+                </div>
             </div>
         </div>
     );

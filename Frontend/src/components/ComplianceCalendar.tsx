@@ -602,8 +602,8 @@ export default function ComplianceCalendar() {
 
       {/* MANUAL ADD MODAL WITH DEPARTMENT DROPDOWN */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h2 className="text-xl font-bold mb-4">Add Manual Task</h2>
             <div className="space-y-4">
               <div>
@@ -646,8 +646,8 @@ export default function ComplianceCalendar() {
 
       {/* STICKY NOTE EDIT MODAL */}
       {isNoteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
               <StickyNote className="w-5 h-5 text-yellow-500" />
               Note for {new Date(activeNoteDate).toLocaleDateString()}
@@ -689,7 +689,7 @@ export default function ComplianceCalendar() {
       {selectedDayDocs && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/20" onClick={() => setSelectedDayDocs(null)}></div>
-          <div className="w-96 bg-white h-full shadow-2xl relative animate-slide-left p-6 flex flex-col">
+          <div className="w-full max-w-md bg-white h-full shadow-2xl relative animate-slide-left p-6 flex flex-col">
             <h2 className="text-xl font-bold mb-6">Documents for Date</h2>
             <div className="flex-1 overflow-y-auto space-y-4">
               {selectedDayDocs.map((doc: any) => (

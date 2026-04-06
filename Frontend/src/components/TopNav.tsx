@@ -11,11 +11,11 @@ interface NotificationType {
   message: string;
   createdAt: string;
   document_id?: string;
-  is_read: boolean;
+  isRead?: boolean;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000");
+const translationCache = new Map<string, string>();
 
 export default function TopNav() {
   const { profile, signOut } = useAuth();
@@ -33,16 +33,26 @@ export default function TopNav() {
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const isNotificationRead = (notification: NotificationType) =>
+    Boolean(notification.isRead);
+
   useEffect(() => {
     if (profile) loadNotifications();
   }, [profile, language]); // reload when language changes
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000", {
+      auth: { token },
+    });
+
     socket.on("new-notification", async (data) => {
       if (language === "hi") {
         const translated = {
           ...data,
-          title: await translateText(data.title),
+          title: await translateText(data.title || "Notification"),
           message: await translateText(data.message),
         };
         setNotifications((prev) => [translated, ...prev]);
@@ -79,31 +89,39 @@ export default function TopNav() {
     return fetch(url, { ...options, headers });
   };
 
-const translateText = async (text: string) => {
-  try {
-    const res = await fetch(`${API_URL}/api/translate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        target: language === "hi" ? "Hindi" : "English",
-      }),
-    });
+  const translateText = async (text: string) => {
+    const normalizedText = typeof text === "string" ? text.trim() : "";
+    if (!normalizedText) return text;
+    if (language !== "hi") return text;
 
-    const data = await res.json();
+    const cacheKey = `${language}:${normalizedText}`;
+    const cached = translationCache.get(cacheKey);
+    if (cached) return cached;
 
-    if (!res.ok) {
-      console.error(data);
+    try {
+      const res = await fetch(`${API_URL}/api/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: normalizedText,
+          target: language,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.translatedText !== "string") {
+        console.error("Translation API error:", data);
+        return text;
+      }
+
+      const translated = data.translatedText.trim() || text;
+      translationCache.set(cacheKey, translated);
+      return translated;
+    } catch (err) {
+      console.error("Translation error:", err);
       return text;
     }
-
-    return data.translatedText;
-
-  } catch (err) {
-    console.error("Translation error:", err);
-    return text;
-  }
-};
+  };
 
   const loadNotifications = async () => {
     try {
@@ -128,45 +146,83 @@ const translateText = async (text: string) => {
     }
   };
 
-  const openNotification = (n: NotificationType) => {
-    if (n.document_id) navigate(`/api/documents/${n.document_id}`);
+  const openNotification = async (n: NotificationType) => {
+    try {
+      await authFetch(`${API_URL}/api/notifications/mark-read`, {
+        method: "PUT",
+      });
+    } catch (err) {
+      console.error(err);
+    }
+
+    setNotifications((prev) =>
+      prev.map((item) => ({ ...item, isRead: true }))
+    );
+
+    if (n.document_id) navigate(`/document/${n.document_id}`);
     setShowNotifications(false);
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    try {
+      await authFetch(`${API_URL}/api/notifications/mark-read`, {
+        method: "PUT",
+      });
+    } catch (err) {
+      console.error(err);
+    }
+
     setNotifications((prev) =>
-      prev.map((n) => ({ ...n, is_read: true }))
+      prev.map((n) => ({ ...n, isRead: true }))
     );
   };
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => !isNotificationRead(n)).length;
+  const unreadLabel =
+    unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : "";
+
+  const formatNotificationTime = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
 
   return (
-    <nav className="bg-white/80 backdrop-blur-lg border-b border-gray-200 px-8 py-4 sticky top-0 z-50 shadow-md">
-      <div className="flex items-center justify-between">
+    <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/88 px-3 py-2 backdrop-blur-xl shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)] sm:px-4 lg:px-6">
+      <div className="flex items-center justify-between gap-3">
 
         {/* Logo */}
-        <div className="flex items-center shrink-0">
+        <div className="flex min-w-0 items-center gap-3 shrink-0">
           <img 
             src="/logo.png" 
             alt="Doclytic" 
-            className="h-12 md:h-16 w-auto max-w-none shrink-0 object-contain drop-shadow-sm" 
+            className="h-10 w-auto max-w-none shrink-0 object-contain drop-shadow-sm sm:h-12 lg:h-14" 
           />
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3">
 
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-xl hover:bg-gray-100 transition"
+              className={`relative flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200 ${
+                showNotifications
+                  ? "border-blue-200 bg-blue-50 text-blue-700 shadow-[0_12px_30px_-18px_rgba(37,99,235,0.55)]"
+                  : "border-slate-200/80 bg-white/90 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
+              }`}
+              aria-label="Open notifications"
             >
-              <Bell className="w-6 h-6 text-gray-700" />
+              <Bell className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs
-                  rounded-full w-5 h-5 flex items-center justify-center shadow animate-pulse">
-                  {unreadCount}
+                <span className="absolute -right-1.5 -top-1.5 flex min-w-[1.5rem] items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-lg ring-2 ring-white">
+                  {unreadLabel}
                 </span>
               )}
             </button>
@@ -178,16 +234,23 @@ const translateText = async (text: string) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
+                  className="absolute right-0 mt-4 w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white/95 shadow-[0_28px_70px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:w-[25rem]"
                 >
-                  <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-800">
-                      Notifications
-                    </h3>
+                  <div className="flex items-center justify-between border-b border-slate-200/80 bg-[linear-gradient(135deg,_rgba(239,246,255,0.95),_rgba(248,250,252,0.96))] px-4 py-4 sm:px-5">
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Notifications
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {unreadCount > 0
+                          ? `${unreadCount} unread update${unreadCount > 1 ? "s" : ""}`
+                          : "You're all caught up"}
+                      </p>
+                    </div>
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
-                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                        className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
                       >
                         <Check className="w-4 h-4" />
                         Mark all as read
@@ -195,30 +258,56 @@ const translateText = async (text: string) => {
                     )}
                   </div>
 
-                  <div className="max-h-96 overflow-y-auto">
+                  <div className="max-h-[70vh] overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-gray-500">
-                        No notifications
+                      <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+                        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                          <Bell className="h-6 w-6" />
+                        </div>
+                        <p className="text-base font-semibold text-slate-700">
+                          No notifications yet
+                        </p>
+                        <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
+                          New uploads, comments, and routing updates will show up here.
+                        </p>
                       </div>
                     ) : (
                       notifications.map((n) => (
-                        <div
+                        <button
                           key={n._id}
                           onClick={() => openNotification(n)}
-                          className={`px-6 py-4 border-b cursor-pointer transition
-                          ${n.is_read ? "bg-white" : "bg-blue-50"}
-                          hover:bg-gray-100`}
+                          className={`group relative flex w-full items-start gap-3 border-b border-slate-100 px-4 py-4 text-left transition last:border-b-0 sm:px-5 ${
+                            isNotificationRead(n)
+                              ? "bg-white hover:bg-slate-50"
+                              : "bg-blue-50/70 hover:bg-blue-50"
+                          }`}
                         >
-                          <p className="font-semibold text-gray-800">
-                            {n.title}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {n.message}
-                          </p>
-                          <span className="text-xs text-gray-400 mt-2 block">
-                            {new Date(n.createdAt).toLocaleString()}
-                          </span>
-                        </div>
+                          <div
+                            className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                              isNotificationRead(n)
+                                ? "bg-slate-200"
+                                : "bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.16)]"
+                            }`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="line-clamp-1 pr-1 text-sm font-semibold text-slate-800">
+                                {n.title}
+                              </p>
+                              {!isNotificationRead(n) && (
+                                <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+                                  New
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                              {n.message}
+                            </p>
+                            <span className="mt-2 block text-xs font-medium text-slate-400">
+                              {formatNotificationTime(n.createdAt)}
+                            </span>
+                          </div>
+                        </button>
                       ))
                     )}
                   </div>
@@ -234,21 +323,29 @@ const translateText = async (text: string) => {
               setLanguage(newLang);
               localStorage.setItem("appLanguage", newLang);
             }}
-            className="p-2 rounded-xl hover:bg-gray-100 transition"
+            className="rounded-xl p-2 transition hover:bg-slate-100"
           >
-            <Globe className="w-6 h-6 text-gray-700" />
+            <Globe className="h-5 w-5 text-slate-700 sm:h-6 sm:w-6" />
           </button>
 
           {/* Profile */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-100 transition"
+              className="flex items-center gap-2 rounded-xl px-2 py-2 transition hover:bg-slate-100 sm:gap-3 sm:px-3"
             >
-              <div className="w-9 h-9 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-center font-semibold shadow">
-                {profile?.full_name?.charAt(0).toUpperCase() || "U"}
-              </div>
-              <span className="text-gray-800 font-medium hidden sm:block">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name || "User"}
+                  className="h-8 w-8 rounded-full object-cover shadow sm:h-9 sm:w-9"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow sm:h-9 sm:w-9">
+                  {profile?.full_name?.charAt(0).toUpperCase() || "U"}
+                </div>
+              )}
+              <span className="hidden max-w-[10rem] truncate text-sm font-medium text-slate-800 lg:block">
                 {profile?.full_name}
               </span>
             </button>
@@ -260,7 +357,7 @@ const translateText = async (text: string) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-4 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+                  className="absolute right-0 mt-4 w-60 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl"
                 >
                   <div className="px-5 py-4 border-b bg-gray-50">
                     <p className="font-semibold text-gray-800">

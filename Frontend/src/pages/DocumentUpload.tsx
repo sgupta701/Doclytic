@@ -134,7 +134,7 @@ export default function DocumentUpload() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">Upload Document</h1>
 
         <div className="mb-4">
@@ -164,7 +164,7 @@ export default function DocumentUpload() {
 
         <button
           onClick={handleUpload}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           disabled={loading}
         >
           <Upload className="w-4 h-4" />

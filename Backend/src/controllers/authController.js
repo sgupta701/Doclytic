@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { serializeUserProfile } from '../utils/serializeUserProfile.js';
+import { ensureEmployeeId } from '../utils/employeeId.js';
 dotenv.config();
 
 export const register = async (req, res) => {
@@ -15,17 +17,10 @@ export const register = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     const user = new User({ email, password: hashed, full_name, department_id, designation, contact });
     await user.save();
+    await ensureEmployeeId(user);
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: {
-      id: user._id,
-      email: user.email,
-      full_name: user.full_name,
-      department_id: user.department_id,
-      designation: user.designation,
-      working_hours: user.working_hours,
-      avatar_url: user.avatar_url,
-    } });
+    res.json({ token, user: serializeUserProfile(user) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -43,20 +38,14 @@ export const login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: 'Invalid credentials' });
 
+    await ensureEmployeeId(user);
     user.last_login = new Date();
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        full_name: user.full_name,
-        department_id: user.department_id,
-        designation: user.designation,
-        avatar_url: user.avatar_url,
-      },
+      user: serializeUserProfile(user),
     });
   } catch (err) {
     console.error(err);

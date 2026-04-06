@@ -6,6 +6,7 @@ import User from "../models/User.js";
 import { Readable } from "stream";
 import { getGFS } from "../utils/gridfs.js";
 import mongoose from "mongoose";
+import { buildEmployeeId, ensureEmployeeId } from "../utils/employeeId.js";
 
 // Create OAuth2 client
 const oauth2Client = new google.auth.OAuth2(
@@ -51,15 +52,21 @@ export const googleCallback = async (req, res) => {
     // Find or create user
     let user = await User.findOne({ email: userinfo.email });
     if (!user) {
-      user = await User.create({
+      user = new User({
         full_name: userinfo.name,
         email: userinfo.email,
         password: "google-oauth",
       });
+      user.employee_id = buildEmployeeId(user._id);
+      await user.save();
       console.log("🔴 Created new user:", user);
     } else {
       console.log("🔴 Found existing user:", user);
     }
+
+    await ensureEmployeeId(user);
+    user.last_login = new Date();
+    await user.save();
 
     // Save token per user
     await GmailToken.findOneAndUpdate(
@@ -81,6 +88,7 @@ export const googleCallback = async (req, res) => {
       email: user.email,
       full_name: user.full_name,
       department_id: user.department_id || null,
+      employee_id: user.employee_id || "",
       avatar_url: userinfo.picture || ""
     };
 
@@ -160,11 +168,14 @@ export const fetchMailAttachments = async (req, res) => {
 
         // ✅ FIX: Store userId in metadata so we can filter by user later
         const uploadStream = gfs.openUploadStream(uniqueName, {
+          contentType: part.mimeType || "application/octet-stream",
           metadata: {
             userId: userId.toString(), // ✅ ADD THIS
             from: msg.data.payload.headers.find((h) => h.name === "From")?.value || "",
             subject: msg.data.payload.headers.find((h) => h.name === "Subject")?.value || "",
             messageId: mail.id,
+            originalFilename: part.filename,
+            contentType: part.mimeType || "application/octet-stream",
           },
         });
 
@@ -187,6 +198,28 @@ export const fetchMailAttachments = async (req, res) => {
     res.json({ message: "Fetched unread mail attachments", saved: savedFiles });
   } catch (err) {
     console.error("❌ fetchMailAttachments error:", err);
+    const googleError =
+      err?.response?.data?.error ||
+      err?.cause?.message ||
+      err?.message ||
+      "";
+
+    if (String(googleError).toLowerCase().includes("invalid_grant")) {
+      try {
+        const userId = req.userId || req.user?.id;
+        if (userId) {
+          await GmailToken.deleteOne({ userId });
+        }
+      } catch (cleanupErr) {
+        console.error("❌ Failed to delete stale Gmail token:", cleanupErr);
+      }
+
+      return res.status(401).json({
+        error: "Google session expired. Please reconnect your Gmail account.",
+        code: "GMAIL_REAUTH_REQUIRED",
+      });
+    }
+
     res.status(500).json({ error: err.message });
   }
 };
@@ -282,7 +315,19 @@ export const downloadMailFile = async (req, res) => {
 
     console.log(`✅ User ${userId} downloading their file: ${file.filename}`);
 
-    res.set("Content-Disposition", `attachment; filename="${file.filename}"`);
+    const originalName =
+      file.metadata?.originalFilename ||
+      file.metadata?.originalName ||
+      file.filename ||
+      "attachment";
+
+    res.set("Content-Type", file.contentType || file.metadata?.contentType || "application/octet-stream");
+    res.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, X-Original-Filename");
+    res.set("X-Original-Filename", originalName);
+    res.set(
+      "Content-Disposition",
+      `inline; filename="${originalName}"`
+    );
     gfs.openDownloadStream(file._id).pipe(res);
   } catch (err) {
     console.error("❌ downloadMailFile error:", err);
