@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Clock, Briefcase, Building, Shield, Activity, Edit2, Save, X } from 'lucide-react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { User, Mail, Phone, Clock, Briefcase, Building, Shield, Activity, Edit2, Save, X, Camera } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,11 +19,15 @@ export default function Profile() {
     full_name: '',
     designation: '',
     contact: '',
+    employee_id: '',
     working_hours: '',
-    responsibilities: ''
+    responsibilities: '',
+    avatar_url: ''
   });
   const [loadingDept, setLoadingDept] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -42,9 +46,12 @@ export default function Profile() {
         full_name: (profile as any).full_name || '',
         designation: (profile as any).designation || '',
         contact: (profile as any).contact || '',
+        employee_id: (profile as any).employee_id || '',
         working_hours: (profile as any).working_hours || '',
-        responsibilities: (profile as any).responsibilities || ''
+        responsibilities: (profile as any).responsibilities || '',
+        avatar_url: (profile as any).avatar_url || ''
       });
+      setAvatarError('');
 
       if ((profile as any).department_id) {
         loadDepartment((profile as any).department_id);
@@ -78,8 +85,10 @@ export default function Profile() {
         full_name: formData.full_name,
         designation: formData.designation,
         contact: formData.contact,
+        employee_id: formData.employee_id,
         working_hours: formData.working_hours,
-        responsibilities: formData.responsibilities
+        responsibilities: formData.responsibilities,
+        avatar_url: formData.avatar_url
       };
 
       const res = await authFetch(`${API_URL}/api/profile/me`, {
@@ -95,8 +104,10 @@ export default function Profile() {
         full_name: data.full_name || '',
         designation: data.designation || '',
         contact: data.contact || '',
+        employee_id: data.employee_id || '',
         working_hours: data.working_hours || '',
-        responsibilities: data.responsibilities || ''
+        responsibilities: data.responsibilities || '',
+        avatar_url: data.avatar_url || ''
       });
 
       setIsEditing(false);
@@ -117,11 +128,44 @@ export default function Profile() {
         full_name: (profile as any).full_name || '',
         designation: (profile as any).designation || '',
         contact: (profile as any).contact || '',
+        employee_id: (profile as any).employee_id || '',
         working_hours: (profile as any).working_hours || '',
-        responsibilities: (profile as any).responsibilities || ''
+        responsibilities: (profile as any).responsibilities || '',
+        avatar_url: (profile as any).avatar_url || ''
       });
     }
+    setAvatarError('');
     setIsEditing(false);
+  };
+
+  const handleAvatarUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please choose an image file.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError('Please choose an image smaller than 2MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({
+        ...prev,
+        avatar_url: typeof reader.result === 'string' ? reader.result : prev.avatar_url,
+      }));
+      setAvatarError('');
+    };
+    reader.onerror = () => {
+      setAvatarError('Failed to read the selected image.');
+    };
+    reader.readAsDataURL(file);
   };
 
   if (!profile) {
@@ -142,11 +186,11 @@ export default function Profile() {
             <div className="h-32 bg-gradient-to-r from-blue-500 to-blue-600"></div>
 
             <div className="px-8 pb-8">
-              <div className="flex items-end justify-between -mt-16 mb-6">
-                <div className="flex items-end space-x-4">
-                  {(profile as any).avatar_url ? (
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between -mt-16 mb-6">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end">
+                  {formData.avatar_url ? (
                     <img
-                      src={(profile as any).avatar_url}
+                      src={formData.avatar_url}
                       alt={formData.full_name}
                       className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
                     />
@@ -160,6 +204,28 @@ export default function Profile() {
                   <div className="mb-2">
                     <h1 className="text-3xl font-bold text-gray-900">{formData.full_name}</h1>
                     <p className="text-gray-600">{formData.designation || 'User'}</p>
+                    {isEditing && (
+                      <div className="mt-4">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarUpload}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>{formData.avatar_url ? 'Change Photo' : 'Add Photo'}</span>
+                        </button>
+                        {avatarError && (
+                          <p className="mt-2 text-sm text-red-600">{avatarError}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -172,18 +238,18 @@ export default function Profile() {
                     <span>Edit Profile</span>
                   </button>
                 ) : (
-                  <div className="flex space-x-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                     >
                       <Save className="w-4 h-4" />
                       <span>{saving ? 'Saving...' : 'Save'}</span>
                     </button>
                     <button
                       onClick={handleCancel}
-                      className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                     >
                       <X className="w-4 h-4" />
                       <span>Cancel</span>
@@ -193,7 +259,7 @@ export default function Profile() {
               </div>
 
               <div className="border-b border-gray-200 mb-6">
-                <div className="flex space-x-8">
+                <div className="flex flex-wrap gap-4">
                   {(['personal', 'permissions', 'activity'] as const).map((tab) => (
                     <button
                       key={tab}
@@ -326,7 +392,16 @@ export default function Profile() {
                         <span>Employee ID</span>
                       </div>
                     </label>
-                    <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{(profile as any).employee_id || 'Not assigned'}</p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.employee_id}
+                        onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="text-gray-900 px-4 py-2 bg-gray-50 rounded-lg">{formData.employee_id || 'Not assigned'}</p>
+                    )}
                   </div>
 
                   {/* Last Login — read-only */}

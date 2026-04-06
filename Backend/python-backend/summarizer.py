@@ -186,7 +186,8 @@ def detect_document_type(text):
             "This document appears to be a resume for a professional profile. It highlights that ",
             "Based on the credentials provided, this professional summary showcases how ",
             "This CV outlines a career trajectory, emphasizing that ",
-            "The following professional profile details the expertise and "
+            "The following professional profile details the expertise and ",
+            "This career overview documents the professional background and "
         ]
         return random.choice(options)
     
@@ -196,7 +197,8 @@ def detect_document_type(text):
             "This research paper discusses ",
             "The following academic study explores ",
             "In this scholarly article, the authors investigate ",
-            "This technical paper presents findings regarding "
+            "This technical paper presents findings regarding ",
+            "This scientific analysis examines the core aspects of "
         ]
         return random.choice(options)
     
@@ -206,41 +208,46 @@ def detect_document_type(text):
             "This notice states that ",
             "The following announcement informs the recipient that ",
             "As per this formal communication, it is noted that ",
-            "This official correspondence declares that "
+            "This official correspondence declares that ",
+            "This formal letter provides notification regarding "
         ]
         return random.choice(options)
         
-    # 4. Default / General Document
     options = [
         "In this document, it is stated that ",
         "The text provided conveys information about ",
         "According to the content, the main point is that ",
-        "The following information indicates that "
+        "The following information indicates that ",
+        "This record provides an overview of how ",
+        "The provided text outlines the details concerning ",
+        "Based on the documentation, it appears that ",
+        "This summary covers the primary details of ",
+        "The essential contents of this file suggest that "
     ]
     return random.choice(options)
 
 def run_model_inference(text, max_len=100, min_len=30):
-    """Tweaked for better abstraction without sacrificing too much speed."""
+    """Optimized for speed (low beams) but high abstraction (repetition penalty)."""
     inputs = tokenizer(text, max_length=1024, return_tensors="pt", truncation=True).to(device)
     
     summary_ids = model.generate(
         inputs["input_ids"], 
         max_length=max_len, 
         min_length=min_len, 
-        num_beams=1,           
-        length_penalty=2.0,    
+        num_beams=2,             
+        length_penalty=1.0,   
         do_sample=False, 
         early_stopping=True,
         no_repeat_ngram_size=3,  
-        repetition_penalty=1.2 
+        repetition_penalty=1.5  
     )
     return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
 def generate_summary(text):
     if not text.strip():
         return "No text to summarize."
 
     text = " ".join(text.split())
-
     essential_text = get_essential_section(text)
 
     if len(essential_text.split()) < 40:
@@ -255,6 +262,9 @@ def generate_summary(text):
         
         if clean_summary.lower().startswith("the "):
             clean_summary = clean_summary[4:]
+
+        if clean_summary.lower().startswith(prefix.lower().strip()):
+             clean_summary = clean_summary[len(prefix):].strip()
 
         return f"{prefix}{clean_summary}"
         

@@ -9,13 +9,20 @@ export interface UserProfile {
   avatar?: string;
   avatar_url?: string;
   designation?: string;
+  contact?: string;
+  working_hours?: string;
+  employee_id?: string;
+  responsibilities?: string;
+  last_login?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 interface AuthContextType {
   profile: UserProfile | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
-  saveOAuthLogin: (token: string, profile: UserProfile | null) => void;
+  saveOAuthLogin: (token: string, profile: UserProfile | null) => Promise<void>;
   getAuthToken: () => string | null;
   refreshProfile: () => Promise<void>;
   loading: boolean;
@@ -33,14 +40,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const normalizeProfile = (incoming: any): UserProfile | null => {
+    if (!incoming || typeof incoming !== 'object' || !incoming.email) return null;
+
+    return {
+      id: incoming.id || incoming._id || '',
+      email: incoming.email || '',
+      full_name: incoming.full_name || '',
+      department_id: incoming.department_id || '',
+      avatar: incoming.avatar || incoming.avatar_url || '',
+      avatar_url: incoming.avatar_url || incoming.avatar || '',
+      designation: incoming.designation || '',
+      contact: incoming.contact || '',
+      working_hours: incoming.working_hours || '',
+      employee_id: incoming.employee_id || '',
+      responsibilities: incoming.responsibilities || '',
+      last_login: incoming.last_login || null,
+      createdAt: incoming.createdAt || incoming.created_at || null,
+      updatedAt: incoming.updatedAt || incoming.updated_at || null,
+    };
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedProfile = localStorage.getItem('profile');
 
     if (token && storedProfile) {
       try {
-        const parsedProfile = JSON.parse(storedProfile);
-        if (parsedProfile && typeof parsedProfile === 'object' && parsedProfile.email) {
+        const parsedProfile = normalizeProfile(JSON.parse(storedProfile));
+        if (parsedProfile) {
           setProfile(parsedProfile);
         } else {
           localStorage.removeItem('token');
@@ -53,6 +81,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setLoading(false);
+
+    if (token) {
+      void refreshProfile();
+    }
   }, []);
 
   const refreshProfile = async () => {
@@ -65,7 +97,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         credentials: 'include',
       });
       if (!res.ok) return;
-      const updatedUser = await res.json();
+      const updatedUser = normalizeProfile(await res.json());
+      if (!updatedUser) return;
       localStorage.setItem('profile', JSON.stringify(updatedUser));
       setProfile(updatedUser);
     } catch (err) {
@@ -86,23 +119,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const data = await res.json();
-    const fullProfile: UserProfile = { ...data.user };
+    const fullProfile = normalizeProfile(data.user);
+
+    if (!fullProfile) {
+      throw new Error('Invalid user profile returned from server');
+    }
 
     localStorage.setItem('token', data.token);
     localStorage.setItem('profile', JSON.stringify(fullProfile));
     setProfile(fullProfile);
+    await refreshProfile();
   };
 
-  const saveOAuthLogin = (token: string, userProfile: UserProfile | null) => {
-    if (!userProfile || !userProfile.email) {
+  const saveOAuthLogin = async (token: string, userProfile: UserProfile | null) => {
+    const normalizedProfile = normalizeProfile(userProfile);
+
+    if (!normalizedProfile) {
       console.error('Cannot save OAuth login: invalid profile');
       return;
     }
 
     try {
       localStorage.setItem('token', token);
-      localStorage.setItem('profile', JSON.stringify(userProfile));
-      setProfile(userProfile);
+      localStorage.setItem('profile', JSON.stringify(normalizedProfile));
+      setProfile(normalizedProfile);
+      await refreshProfile();
     } catch (error) {
       console.error('Error saving OAuth login:', error);
     }

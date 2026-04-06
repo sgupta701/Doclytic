@@ -19,8 +19,9 @@ router.post("/", async (req, res) => {
 
   } catch (error) {
     console.error("Translation Route Error:", error);
-    res.status(500).json({
-      error: "Translation failed",
+    res.json({
+      translatedText: text,
+      fallback: true,
     });
   }
 });

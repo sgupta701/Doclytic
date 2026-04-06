@@ -1,8 +1,8 @@
 // frontend/src/api/ragAPI.ts
 
 export const askDocumentQuestion = async (documentId: string, question: string) => {
-
-    const url = `http://localhost:8000/documents/${documentId}/chat`;
+    const AI_BASE_URL = (import.meta.env.VITE_AI_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+    const url = `${AI_BASE_URL}/documents/${documentId}/chat`;
 
     const response = await fetch(url, {
         method: 'POST',

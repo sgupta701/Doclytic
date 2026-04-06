@@ -85,6 +85,24 @@ const deleteStoredFileIfAny = async (storageFileId) => {
   await gfs.delete(new mongoose.Types.ObjectId(storageFileId));
 };
 
+const resolveOriginalFilename = async (doc) => {
+  if (!doc?.storage_file_id || !mongoose.Types.ObjectId.isValid(doc.storage_file_id)) {
+    return doc?.original_filename || "";
+  }
+
+  const file = await mongoose.connection.db
+    .collection(`${DOCUMENT_BUCKET_NAME}.files`)
+    .findOne({ _id: new mongoose.Types.ObjectId(doc.storage_file_id) });
+
+  return (
+    doc?.original_filename ||
+    file?.metadata?.originalName ||
+    file?.metadata?.originalFilename ||
+    file?.filename ||
+    ""
+  );
+};
+
 const isRoutingOnlyUpdatePayload = (body) => {
   if (!body || typeof body !== "object") return false;
   const allowedTopLevel = new Set([
@@ -119,6 +137,29 @@ const isPendingManualReviewDocument = (doc) => {
   );
 };
 
+const notifyDepartmentUsersAboutUpload = async (doc, uploaderId) => {
+  if (!doc?.department_id) return;
+
+  const recipients = await User.find({
+    department_id: doc.department_id,
+    _id: { $ne: uploaderId },
+  }).select("_id");
+
+  await Promise.all(
+    recipients.map((recipient) =>
+      sendNotification(
+        recipient._id,
+        `A new document "${doc.title}" was uploaded for your department.`,
+        "info",
+        {
+          title: "New Department Document",
+          document_id: doc._id,
+        }
+      )
+    )
+  );
+};
+
 export const createDocument = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("department_id");
@@ -141,6 +182,7 @@ export const createDocument = async (req, res) => {
       await Document.findByIdAndUpdate(doc._id, {
         file_url: filePayload.fileUrl,
         file_type: filePayload.fileType,
+        original_filename: req.file.originalname,
         storage_file_id: filePayload.storageFileId,
       });
     }
@@ -163,8 +205,14 @@ export const createDocument = async (req, res) => {
     await sendNotification(
       req.userId,
       `Your document "${doc.title}" has been uploaded.`,
-      "success"
+      "success",
+      {
+        title: "Document Uploaded",
+        document_id: doc._id,
+      }
     );
+
+    await notifyDepartmentUsersAboutUpload(doc, req.userId);
 
     const hydrated = await Document.findById(doc._id).populate("department_id", "name color");
     res.json(formatDocumentForClient(hydrated));
@@ -183,8 +231,10 @@ export const getDocument = async (req, res) => {
     if (!doc) return res.status(404).json({ message: "Document not found" });
 
     const priority = await DocumentPriority.findOne({ document_id: doc._id }).lean();
+    const original_filename = await resolveOriginalFilename(doc);
     res.json({
       ...formatDocumentForClient(doc),
+      original_filename,
       priority: priority || null,
     });
   } catch (err) {
@@ -248,10 +298,22 @@ export const downloadDocumentFile = async (req, res) => {
       return res.status(404).json({ message: "Stored file not found" });
     }
 
-    res.set("Content-Type", file.contentType || doc.file_type || "application/octet-stream");
+    const originalName =
+      file.metadata?.originalName ||
+      file.metadata?.originalFilename ||
+      file.filename ||
+      doc.title ||
+      "document";
+
+    res.set(
+      "Content-Type",
+      file.contentType || file.metadata?.contentType || doc.file_type || "application/octet-stream"
+    );
+    res.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, X-Original-Filename");
+    res.set("X-Original-Filename", originalName);
     res.set(
       "Content-Disposition",
-      `inline; filename="${file.filename || doc.title || "document"}"`
+      `inline; filename="${originalName}"`
     );
 
     const gfs = await getGFS(DOCUMENT_BUCKET_NAME);
@@ -291,6 +353,7 @@ export const updateDocument = async (req, res) => {
 
       req.body.file_url = filePayload.fileUrl;
       req.body.file_type = filePayload.fileType;
+      req.body.original_filename = req.file.originalname;
       req.body.storage_file_id = filePayload.storageFileId;
 
       if (previousStorageFileId && previousStorageFileId !== filePayload.storageFileId) {
@@ -423,6 +486,7 @@ export const uploadDocument = async (req, res) => {
       uploaded_by: req.userId,
       file_url: null,
       file_type: req.file?.mimetype || null,
+      original_filename: req.file?.originalname || null,
       storage_file_id: null,
     };
 
@@ -438,6 +502,7 @@ export const uploadDocument = async (req, res) => {
       await Document.findByIdAndUpdate(doc._id, {
         file_url: filePayload.fileUrl,
         file_type: filePayload.fileType,
+        original_filename: req.file.originalname,
         storage_file_id: filePayload.storageFileId,
       });
     }

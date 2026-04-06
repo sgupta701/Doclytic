@@ -249,16 +249,18 @@ export default function DepartmentDocuments() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-slate-50 p-8">
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
         {loading ? (
           <div className="py-20 text-center text-gray-500">Loading department documents...</div>
         ) : (
           <>
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900">{department.name} Documents</h1>
-              <p className="text-gray-600 mt-1">
-                Routed documents visible only to users in {department.name}.
-              </p>
+            <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{department?.name ?? "Department"} Documents</h1>
+                <p className="text-gray-600 mt-1">
+                  Routed documents visible only to users in {department?.name ?? "this department"}.
+                </p>
+              </div>
             </div>
 
             {documents.length === 0 ? (
