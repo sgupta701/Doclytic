@@ -47,6 +47,7 @@ interface DocumentWithDetails {
   } | null;
   department_id: string;
   routed_department?: string;
+  routed_departments?: string[];
   uploaded_by?: string | { _id?: string };
   department?: Department;
   createdAt: string;
@@ -779,6 +780,35 @@ export default function Dashboard() {
     return { backgroundColor: "#e2e8f015", color: "#475569" };
   };
 
+  const getDocumentDepartmentNames = (doc: DocumentWithDetails): string[] => {
+    const seen = new Set<string>();
+    const names: string[] = [];
+
+    const push = (value?: string | null) => {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(trimmed);
+    };
+
+    if (Array.isArray(doc.routed_departments)) {
+      doc.routed_departments.forEach(push);
+    }
+
+    push(doc.routed_department);
+    push(doc.department?.name);
+
+    return names;
+  };
+
+  const getDocumentDepartmentLabel = (doc: DocumentWithDetails): string => {
+    const departmentNames = getDocumentDepartmentNames(doc);
+    if (departmentNames.length > 0) return departmentNames.join(" / ");
+    return "Unrouted";
+  };
+
   const getPriorityColor = (level?: string) =>
     ({
       Critical: "bg-rose-100 text-rose-800 border-rose-200",
@@ -802,7 +832,7 @@ export default function Dashboard() {
 
         const searchableTitle = (d.title || "").toLowerCase();
         const searchableSummary = (d.summary || "").toLowerCase();
-        const searchableDepartment = (d.department?.name || "").toLowerCase();
+        const searchableDepartment = getDocumentDepartmentLabel(d).toLowerCase();
 
         const matchesSearch =
           normalizedSearchQuery === "" ||
@@ -1055,7 +1085,8 @@ export default function Dashboard() {
               <p className="text-gray-500 text-lg">No documents found.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="max-h-[calc(220px*2+1.25rem)] overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {filteredDocuments.map((doc) => (
               <div key={doc._id} className="relative h-[220px] w-full"> 
                 <div
@@ -1102,12 +1133,15 @@ export default function Dashboard() {
                         <Clock className="w-3 h-3" />
                         {new Date(doc.createdAt).toLocaleDateString()}
                       </span>
-                      {doc.department && (
+                      {(doc.department || doc.routed_department || (doc.routed_departments?.length ?? 0) > 0) && (
                         <span
                           className="px-2 py-0.5 rounded-md font-medium"
-                          style={{ backgroundColor: `${doc.department.color}15`, color: doc.department.color }}
+                          style={{
+                            backgroundColor: `${doc.department?.color || "#475569"}15`,
+                            color: doc.department?.color || "#475569",
+                          }}
                         >
-                          {doc.department.name}
+                          {getDocumentDepartmentLabel(doc)}
                         </span>
                       )}
                     </div>
@@ -1115,6 +1149,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
+              </div>
             </div>
           )}
         </div>
@@ -1188,7 +1223,8 @@ export default function Dashboard() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="max-h-[calc(220px*2+1.25rem)] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {filteredGmailFiles.map((file) => {
               const urgency = getGmailUrgencyLabel(file);
               const routedDepartment = getGmailDepartmentLabel(file);
@@ -1252,6 +1288,7 @@ export default function Dashboard() {
                 </div>
               );
             })}
+            </div>
           </div>
           )}
         </div>
