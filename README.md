@@ -4,15 +4,19 @@ Doclytic is a unified document ecosystem that uses OCR and deep learning to extr
 
 ---
 
-## 🎯 Key Features
+## Key Features
 
 * **OCR-Based Document Processing** – Extract text from scanned documents and images
-* **AI-Powered Classification** – Automatically categorize documents
-* **Smart Summarization** – Generate concise summaries using LLMs
+* **AI-Powered Classification** – Automatically categorize documents as per their departments.
+* **Quick Extract Summarization** – Generate concise summaries
+* **Multi Document Summarization** – Generate combined summaries of multiple docs based on time and priority.
+* **Detailed Analysis of any document** – Generate detailed analysis of docs.
+* **RAG based chat system** – Querying over docs
 * **Automated Routing** – Send documents to relevant departments
-* **RAG Pipeline** – Context-aware querying over documents
 * **Authentication System** – Secure login with JWT & Google OAuth
 * **Real-time Updates** – WebSocket integration for live updates
+* **Live commenting** – Open discussion panel for the people of same departments to communicate.
+* **Gmail-routing** - Routes the uploaded documents to mail employee's automatically (based on which department the doc belongs to) along with their summaries.
 
 ---
 
@@ -20,32 +24,53 @@ Doclytic is a unified document ecosystem that uses OCR and deep learning to extr
 
 ### Login Page
 
-![Login Screenshot](./screenshots/dashboard.png)
+![Login Screenshot](./ss/loginpage.png)
+This shows the login page of Doclytic.
+
+### My Profile
+
+![Dashboard1 Screenshot](./ss/myprofile.png)
+My profile page shows the details of the employees. 
 
 ### Dashboard
 
-![Dashboard1 Screenshot](./screenshots/dashboard.png)
-![Dashboard2 Screenshot](./screenshots/dashboard.png)
+![Dashboard1 Screenshot](./ss/dashboard1.png)
+Latest docment insights shows the combined summary of 4 most recent documents, you can switch to the combined summary of 4 most high priority docs as well by clicking the toggle button. Through the side bar, you can navigate to compliance calendar, manual reviewing of the docs, and departmental doc page.
 
-### Summary (Quick View + Multidoc)
+![Dashboard1 Screenshot](./ss/dashboard2.png)
+Under the recent documents, you can upload your docs, and you can just hover over any of them to see a quick summary of each one of them so that u dont have to open a doc for getting a gist of it. Moreover, it shows the priority done on the basis of scoring of docs as per their sender, department, etc. The classifier classifies every doc to their respective departments.
 
-![summary Screenshot](./screenshots/dashboard.png)
+![Dashboard1 Screenshot](./ss/dashboard3.png)
+This ss shows how the system allows you to fetch unread documents from your mail- making this whole process just one click away.
 
 ### Compliance Calendar
 
-![Compliance_Calendar Screenshot](./screenshots/upload.png)
+![Compliance_Calendar Screenshot](./ss/compliancecalendar.png)
+Right after the documents are uploaded or fetched, they directly get routed to the compliance calendar which makes the organization of documents easy.
+
+![Compliance_Calendar Screenshot](./ss/kanban.png)
+Added a kanban board to provide clear visualization, and make the process of updating the status of any document easy, just drag and drop the doc from one column to another to update their status.
 
 ### Gmail Fetch
 
-![Gmail Screenshot](./screenshots/analysis.png)
+![Gmail Screenshot](./ss/mail-routing.png)
+This ss shows the routing of doc from Doclytic to our mails. If someone uploads a doc of finance department, and I am in finance, i'll receive the mail and others will not. Similarly if someone uploads a doc of legal department, i wont receive it.
+
+![Gmail Screenshot](./ss/mail.png)
+The routed document shows the summary of the doc and an attachment.
 
 ### Document Detail Dashboard
 
-![DDD Screenshot](./screenshots/rag.png)
+![DDD Screenshot](./ss/documentdetail.png)
+Once you open any document, you can see a detailed analysis of it - where you can get key insights from it and main takeaways.
+
+![DDD Screenshot](./ss/comments.png)
+There is an option for open discussion where you can comment on any document and anyone from your department can see and reply to your comment.
 
 ### RAG based chat
 
-![RAG Screenshot](./screenshots/rag.png)
+![RAG Screenshot](./ss/rag.png)
+The RAG based chat allowes u to ask any specific questions related to the document and it will answer your questions straight forward.
 
 ---
 
