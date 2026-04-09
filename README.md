@@ -30,7 +30,7 @@ This shows the login page of Doclytic.
 ### My Profile
 
 ![Dashboard1 Screenshot](./ss/myprofile.png)
-My profile page shows the details of the employees. 
+My profile page shows the detail of the employees. 
 
 ### Dashboard
 
