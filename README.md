@@ -53,7 +53,7 @@ Added a kanban board to provide clear visualization, and make the process of upd
 
 ### Gmail Fetch
 
-![Gmail Screenshot](./ss/mail-routing.png)
+![Gmail Screenshot](./ss/mail-routing2.png)
 This ss shows the routing of doc from Doclytic to our mails. If someone uploads a doc of finance department, and I am in finance, i'll receive the mail and others will not. Similarly if someone uploads a doc of legal department, i wont receive it.
 
 ![Gmail Screenshot](./ss/mail.png)
@@ -61,7 +61,7 @@ The routed document shows the summary of the doc and an attachment.
 
 ### Document Detail Dashboard
 
-![DDD Screenshot](./ss/documentdetail.png)
+![DDD Screenshot](./ss/documentdetails.png)
 Once you open any document, you can see a detailed analysis of it - where you can get key insights from it and main takeaways.
 
 ![DDD Screenshot](./ss/comments.png)
