@@ -89,8 +89,8 @@ export default function Sidebar() {
         title={collapsed ? item.label : ""}
         className={`group relative w-full flex items-center space-x-3 p-3 rounded-xl transition-all duration-200
           ${active
-            ? "bg-blue-100 text-blue-700 shadow-sm"
-            : "text-gray-700 hover:bg-gray-100"
+            ? "bg-blue-100 dark:bg-blue-900/80 text-blue-700 dark:text-blue-300 shadow-sm"
+            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/80"
           }`}
       >
         <Icon
@@ -129,7 +129,7 @@ export default function Sidebar() {
       {/* MOBILE TOGGLE BUTTON */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-3 top-3 z-50 rounded-xl border border-slate-200 bg-white/95 p-2.5 shadow-lg backdrop-blur md:hidden"
+        className="fixed left-3 top-3 z-50 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-gray-900 dark:text-gray-300 p-2.5 shadow-lg backdrop-blur md:hidden"
       >
         <Menu className="w-6 h-6" />
       </button>
@@ -137,8 +137,8 @@ export default function Sidebar() {
       {/* SIDEBAR */}
       <aside
         className={`
-          fixed top-[73px] left-0 h-[calc(100vh-73px)] bg-[linear-gradient(180deg,rgba(239,246,255,0.95)_0%,rgba(232,240,255,0.94)_100%)]
-          backdrop-blur-xl border-r border-blue-200/80 transition-all duration-300
+          fixed top-[73px] left-0 h-[calc(100vh-73px)] bg-[linear-gradient(180deg,rgba(239,246,255,0.95)_0%,rgba(232,240,255,0.94)_100%)] dark:bg-[linear-gradient(180deg,_rgba(15,23,42,0.98)_0%,_rgba(10,15,30,0.99)_100%)]
+          backdrop-blur-xl border-r border-blue-200/80 dark:border-slate-800/80 transition-all duration-300
           ${collapsed ? "w-20" : "w-64"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           md:translate-x-0 md:z-auto
@@ -146,7 +146,7 @@ export default function Sidebar() {
         `}
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-blue-200/70 p-4">
+        <div className="flex items-center justify-between border-b border-blue-200/70 dark:border-slate-800/80 p-4">
           {!collapsed ? (
             <div className="flex items-center space-x-3 min-w-0">
               {profile?.avatar_url ? (
@@ -156,15 +156,15 @@ export default function Sidebar() {
                   className="h-10 w-10 rounded-full object-cover shadow"
                 />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-lg font-semibold text-white shadow">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-lg font-semibold text-white dark:text-black shadow">
                   {profile?.full_name?.charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-gray-900">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {profile?.full_name}
                 </p>
-                <p className="truncate text-xs text-gray-500">
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                   {profile?.designation || "User"}
                 </p>
               </div>
@@ -178,7 +178,7 @@ export default function Sidebar() {
                   className="w-8 h-8 rounded-full object-cover shadow"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white dark:text-black flex items-center justify-center text-sm font-semibold">
                   {profile?.full_name?.charAt(0).toUpperCase()}
                 </div>
               )}
@@ -187,7 +187,7 @@ export default function Sidebar() {
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded-lg p-2 transition hover:bg-white/70"
+            className="rounded-lg p-2 transition hover:bg-white/70 dark:hover:bg-gray-800/80"
           >
             {collapsed ? <Menu size={20} /> : <X size={20} />}
           </button>
@@ -202,7 +202,7 @@ export default function Sidebar() {
 
           {/* Departments */}
           {!collapsed && (
-            <div className="mt-4 border-t border-blue-200/70 pt-4">
+            <div className="mt-4 border-t border-blue-200/70 dark:border-blue-800/70 pt-4">
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
                 Departments
               </h3>
@@ -214,7 +214,7 @@ export default function Sidebar() {
           ))}
 
           {/* Settings */}
-          <div className="mt-4 border-t border-blue-200/70 pt-4">
+          <div className="mt-4 border-t border-blue-200/70 dark:border-blue-800/70 pt-4">
             <NavItem
               item={{
                 icon: Settings,
