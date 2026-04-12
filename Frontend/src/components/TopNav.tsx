@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 import { useState, useEffect, useRef } from "react";
-import { Bell, Globe, LogOut, User, Check } from "lucide-react";
+import { Bell, Globe, LogOut, User, Check, Sun, Moon } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,6 +24,22 @@ export default function TopNav() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // 2. Add Dark Mode State (initializes from localStorage)
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem("theme") === "dark"
+  );
+
+  // 3. Effect to apply the class to the document
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
 
   // Language State
   const [language, setLanguage] = useState(
@@ -194,13 +210,13 @@ export default function TopNav() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/88 px-3 py-2 backdrop-blur-xl shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)] sm:px-4 lg:px-6">
+    <nav className="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/88 dark:bg-slate-900 px-3 py-2 backdrop-blur-xl shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)] sm:px-4 lg:px-6">
       <div className="flex items-center justify-between gap-3">
 
         {/* Logo */}
         <div className="flex min-w-0 items-center gap-3 shrink-0">
           <img 
-            src="/logo.png" 
+            src="/logoTransparent.png" 
             alt="Doclytic" 
             className="h-10 w-auto max-w-none shrink-0 object-contain drop-shadow-sm sm:h-12 lg:h-14" 
           />
@@ -208,18 +224,35 @@ export default function TopNav() {
 
         <div className="flex items-center gap-1 sm:gap-2 lg:gap-3">
 
+          {/* THE TOGGLE BUTTON */}
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className={`relative flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200 ${
+              darkMode
+                ? "border-slate-300 bg-slate-800/80 text-yellow-600 hover:-translate-y-0.5 hover:border-yellow-200 hover:bg-slate-700/80 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
+                : "border-slate-200/80 bg-white/90 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
+            }`}
+            title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {darkMode ? (
+              <Sun className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem] fill-yellow-500/20" />
+            ) : (
+              <Moon className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" />
+            )}
+          </button>
+
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               className={`relative flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200 ${
                 showNotifications
-                  ? "border-blue-200 bg-blue-50 text-blue-700 shadow-[0_12px_30px_-18px_rgba(37,99,235,0.55)]"
-                  : "border-slate-200/80 bg-white/90 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
+                  ? "border-blue-200 dark:bg-slate-800 bg-blue-50 text-blue-700 shadow-[0_12px_30px_-18px_rgba(37,99,235,0.55)]"
+                  : "border-slate-200/80 bg-white/90 dark:bg-slate-800 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 dark:hover:border-slate-400 dark:hover:bg-slate-700 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
               }`}
               aria-label="Open notifications"
             >
-              <Bell className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" />
+              <Bell className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem] dark:text-slate-200" />
               {unreadCount > 0 && (
                 <span className="absolute -right-1.5 -top-1.5 flex min-w-[1.5rem] items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-lg ring-2 ring-white">
                   {unreadLabel}
@@ -234,14 +267,14 @@ export default function TopNav() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-4 w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white/95 shadow-[0_28px_70px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:w-[25rem]"
+                  className="absolute right-0 mt-4 w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-[1.6rem] border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 dark:shadow-[0_28px_70px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:w-[25rem]"
                 >
-                  <div className="flex items-center justify-between border-b border-slate-200/80 bg-[linear-gradient(135deg,_rgba(239,246,255,0.95),_rgba(248,250,252,0.96))] px-4 py-4 sm:px-5">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80 bg-[linear-gradient(135deg,_rgba(239,246,255,0.95),_rgba(248,250,252,0.96))] dark:bg-[linear-gradient(135deg,_rgba(15,23,42,0.98),_rgba(30,41,59,0.96))] px-4 py-4 sm:px-5">
                     <div>
                       <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
                         Notifications
                       </h3>
-                      <p className="mt-1 text-sm text-slate-600">
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                         {unreadCount > 0
                           ? `${unreadCount} unread update${unreadCount > 1 ? "s" : ""}`
                           : "You're all caught up"}
@@ -261,13 +294,13 @@ export default function TopNav() {
                   <div className="max-h-[70vh] overflow-y-auto">
                     {notifications.length === 0 ? (
                       <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900 dark:text-slate-400">
                           <Bell className="h-6 w-6" />
                         </div>
-                        <p className="text-base font-semibold text-slate-700">
+                        <p className="text-base font-semibold text-slate-700 dark:text-slate-300">
                           No notifications yet
                         </p>
-                        <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
+                        <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                           New uploads, comments, and routing updates will show up here.
                         </p>
                       </div>
@@ -323,16 +356,16 @@ export default function TopNav() {
               setLanguage(newLang);
               localStorage.setItem("appLanguage", newLang);
             }}
-            className="rounded-xl p-2 transition hover:bg-slate-100"
+            className="rounded-xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            <Globe className="h-5 w-5 text-slate-700 sm:h-6 sm:w-6" />
+            <Globe className="h-5 w-5 text-slate-700 dark:text-slate-300 sm:h-6 sm:w-6" />
           </button>
 
           {/* Profile */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center gap-2 rounded-xl px-2 py-2 transition hover:bg-slate-100 sm:gap-3 sm:px-3"
+              className="flex items-center gap-2 rounded-xl px-2 py-2 transition hover:bg-slate-100 dark:hover:bg-slate-800 sm:gap-3 sm:px-3"
             >
               {profile?.avatar_url ? (
                 <img
@@ -341,11 +374,11 @@ export default function TopNav() {
                   className="h-8 w-8 rounded-full object-cover shadow sm:h-9 sm:w-9"
                 />
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow sm:h-9 sm:w-9">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 dark:bg-gradient-to-r dark:from-blue-500 dark:to-indigo-500 text-sm font-semibold text-white dark:text-grey-900 shadow sm:h-9 sm:w-9">
                   {profile?.full_name?.charAt(0).toUpperCase() || "U"}
                 </div>
               )}
-              <span className="hidden max-w-[10rem] truncate text-sm font-medium text-slate-800 lg:block">
+              <span className="hidden max-w-[10rem] truncate text-sm font-medium text-slate-800 dark:text-slate-200 lg:block">
                 {profile?.full_name}
               </span>
             </button>
@@ -357,10 +390,10 @@ export default function TopNav() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-4 w-60 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl"
+                  className="absolute right-0 mt-4 w-60 overflow-hidden rounded-2xl border border-slate-100 bg-white dark:bg-slate-900 dark:border-slate-900 shadow-2xl"
                 >
-                  <div className="px-5 py-4 border-b bg-gray-50">
-                    <p className="font-semibold text-gray-800">
+                  <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-900">
+                    <p className="font-semibold text-gray-800 dark:text-gray-200">
                       {profile?.full_name}
                     </p>
                     <p className="text-sm text-gray-500">
@@ -370,7 +403,7 @@ export default function TopNav() {
 
                   <button
                     onClick={() => navigate("/profile")}
-                    className="w-full px-5 py-3 text-left hover:bg-gray-100 transition flex items-center gap-3 text-gray-700"
+                    className="w-full px-5 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-800/80 transition flex items-center gap-3 text-gray-700 dark:text-gray-300"
                   >
                     <User className="w-5 h-5" />
                     View Profile
@@ -381,7 +414,7 @@ export default function TopNav() {
                       await signOut();
                       navigate("/login");
                     }}
-                    className="w-full px-5 py-3 text-left hover:bg-red-50 transition flex items-center gap-3 text-red-600"
+                    className="w-full px-5 py-3 text-left hover:bg-red-50 dark:hover:bg-red-950/50 transition flex items-center gap-3 text-red-600 dark:text-red-400"
                   >
                     <LogOut className="w-5 h-5" />
                     Sign Out

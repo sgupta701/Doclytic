@@ -895,37 +895,37 @@ export default function Dashboard() {
 
   return (
   <DashboardLayout>
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_24%),linear-gradient(180deg,_#f8fbff_0%,_#f8fafc_42%,_#eef4ff_100%)] px-2 py-3 sm:px-3 sm:py-4 lg:px-4">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_24%),linear-gradient(180deg,_#f8fbff_0%,_#f8fafc_42%,_#eef4ff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.15),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.1),_transparent_30%),linear-gradient(180deg,_#0f172a_0%,_#0a0f1e_42%,_#020617_100%)] px-2 py-3 sm:px-3 sm:py-4 lg:px-4">
 
       {/* ================= HERO HEADER ================= */}
       <div className="mb-6 sm:mb-8">
-        <div className="relative overflow-hidden rounded-[1.75rem] border border-blue-200/60 bg-[linear-gradient(135deg,_#0f4c81_0%,_#1d6fa5_45%,_#59a5d8_100%)] p-5 text-white shadow-[0_24px_60px_-28px_rgba(15,76,129,0.45)] sm:p-7 lg:p-8">
-          <div className="absolute -right-12 top-0 h-40 w-40 rounded-full bg-white/10 blur-2xl sm:h-56 sm:w-56" />
+        <div className="relative overflow-hidden rounded-[1.75rem] border border-blue-200/60 dark:border-blue-800/60 bg-[linear-gradient(135deg,_#0f4c81_0%,_#1d6fa5_45%,_#59a5d8_100%)] dark:bg-[linear-gradient(135deg,_#082f49_0%,_#0c4a6e_45%,_#075985_100%)] p-5 text-white dark:text-gray-950 shadow-[0_24px_60px_-28px_rgba(15,76,129,0.45)] sm:p-7 lg:p-8">
+          <div className="absolute -right-12 top-0 h-40 w-40 rounded-full bg-white/10  blur-2xl sm:h-56 sm:w-56" />
           <div className="absolute -left-8 bottom-0 h-28 w-28 rounded-full bg-cyan-300/10 blur-2xl sm:h-40 sm:w-40" />
           
           <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100/90">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100/90 dark:text-slate-900">
                 Document Command Center
               </p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                 Welcome back, {profile.full_name}
               </h1>
-              <p className="mt-3 max-w-2xl text-sm text-blue-100 sm:text-base lg:text-lg">
+              <p className="mt-3 max-w-2xl text-sm text-blue-100 dark:text-slate-900 sm:text-base lg:text-lg">
                 Here&apos;s what&apos;s happening with your documents, priorities, and Gmail attachments today.
               </p>
             </div>
 
             {/* Search */}
             <div className="relative w-full lg:max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search documents, attachments..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-2xl border border-white/40 bg-white/95 py-3 pl-12 pr-10 text-sm text-slate-800 shadow-lg outline-none transition focus:border-white focus:ring-2 focus:ring-white/70 sm:text-base"
+                className="w-full rounded-2xl border border-white/40 dark:border-slate-900/40 bg-white/95 dark:bg-gray-900 py-3 pl-12 pr-10 text-sm text-slate-800 dark:text-slate-300 shadow-lg outline-none transition focus:border-white dark:focus:border-slate-800 focus:ring-2 focus:ring-white/70 sm:text-base"
               />
               {searchQuery && (
                 <button
@@ -944,48 +944,48 @@ export default function Dashboard() {
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 sm:mb-8">
 
         {/* Total Documents */}
-        <div className="rounded-[1.5rem] border border-white/60 bg-white/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(37,99,235,0.25)]">
+        <div className="rounded-[1.5rem] border border-white/60 dark:border-gray-950/60 bg-white/90 dark:bg-gray-950/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(37,99,235,0.25)]">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm text-slate-500">Total Documents</p>
-              <h2 className="mt-1 text-3xl font-bold text-slate-800">
+              <h2 className="mt-1 text-3xl font-bold text-slate-800 dark:text-slate-200">
                 {documents.length}
               </h2>
             </div>
-            <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
+            <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/50 p-3 text-blue-600 dark:text-blue-400">
               <FileText className="h-7 w-7" />
             </div>
           </div>
         </div>
 
         {/* High Priority */}
-        <div className="rounded-[1.5rem] border border-white/60 bg-white/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(239,68,68,0.25)]">
+        <div className="rounded-[1.5rem] border border-white/60 dark:border-gray-950/60 bg-white/90 dark:bg-gray-950/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(239,68,68,0.25)]">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm text-slate-500">High Priority</p>
-              <h2 className="mt-1 text-3xl font-bold text-red-600">
+              <h2 className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400">
                 {documents.filter((d) => {
                   const level = d.priority?.priority_level;
                   return d.urgency === "high" || level === "High" || level === "Critical";
                 }).length}
               </h2>
             </div>
-            <div className="rounded-2xl bg-red-50 p-3 text-red-500">
+            <div className="rounded-2xl bg-red-50 dark:bg-red-950/50 p-3 text-red-500 dark:text-red-400">
               <Clock className="h-7 w-7" />
             </div>
           </div>
         </div>
 
         {/* Gmail Files */}
-        <div className="rounded-[1.5rem] border border-white/60 bg-white/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(79,70,229,0.25)] sm:col-span-2 xl:col-span-1">
+        <div className="rounded-[1.5rem] border border-white/60 dark:border-gray-950/60 bg-white/90 dark:bg-gray-950/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(79,70,229,0.25)] sm:col-span-2 xl:col-span-1">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm text-slate-500">Gmail Attachments</p>
-              <h2 className="mt-1 text-3xl font-bold text-indigo-600">
+              <h2 className="mt-1 text-3xl font-bold text-indigo-600 dark:text-indigo-400">
                 {gmailFiles.length}
               </h2>
             </div>
-            <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-500">
+            <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 p-3 text-indigo-500 dark:text-indigo-400">
               <Mail className="h-7 w-7" />
             </div>
           </div>
@@ -993,11 +993,11 @@ export default function Dashboard() {
 
       </div>
 
-      <div className="mb-6 rounded-[1.5rem] border border-white/60 bg-white/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] backdrop-blur-lg sm:mb-8 sm:p-6">
+      <div className="mb-6 rounded-[1.5rem] border border-white/60 dark:border-gray-950/60 bg-white/90 dark:bg-gray-950/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] backdrop-blur-lg sm:mb-8 sm:p-6">
   <div className="flex items-center justify-between mb-3">
     <div className="flex items-center gap-2">
       <Sparkles className="w-5 h-5 text-indigo-600" />
-      <h2 className="text-lg font-bold text-gray-800 sm:text-xl">
+      <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200 sm:text-xl">
         {summaryMode === "recent" ? "Latest Document Insights" : "High Priority Insights"}
       </h2>
     </div>
@@ -1005,7 +1005,7 @@ export default function Dashboard() {
     {/* NEW TOGGLE BUTTON */}
     <button 
       onClick={() => setSummaryMode(summaryMode === "recent" ? "priority" : "recent")}
-      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100"
+      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 dark:text-indigo-400 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100 dark:border-indigo-900"
     >
       {summaryMode === "recent" ? "Switch to High Priority" : "Switch to Most Recent"}
     </button>
@@ -1033,7 +1033,7 @@ export default function Dashboard() {
             
             {/* THIS ADDS THE LINKS AT THE BOTTOM */}
             {latestIntegratedSummary && latestSummaryDocs.length > 0 && (
-              <div className="flex items-center gap-3 pt-3 mt-2 border-t border-indigo-50/50">
+              <div className="flex items-center gap-3 pt-3 mt-2 border-t border-indigo-50/50 dark:border-indigo-950/50">
                 <span className="text-xs text-gray-500 font-medium">Sources:</span>
                 {latestSummaryDocs.map((doc) => (
                   <button
@@ -1053,18 +1053,18 @@ export default function Dashboard() {
 
       
      {/* DOCUMENTS SECTION */}
-        <div className="mb-8 rounded-[1.75rem] border border-white/40 bg-white/85 p-5 shadow-[0_20px_48px_-30px_rgba(15,23,42,0.35)] backdrop-blur-lg sm:p-6 lg:p-8">
+        <div className="mb-8 rounded-[1.75rem] border border-white/40 dark:border-gray-950/60 bg-white/85 dark:bg-gray-950/85 p-5 shadow-[0_20px_48px_-30px_rgba(15,23,42,0.35)] backdrop-blur-lg sm:p-6 lg:p-8">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <h2 className="flex items-center gap-3 text-xl font-bold text-gray-800 sm:text-2xl">
+            <h2 className="flex items-center gap-3 text-xl font-bold text-gray-800 dark:text-gray-200 sm:text-2xl">
               <FileText className="w-6 h-6 text-blue-600" /> Recent Documents
             </h2>
             <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={loadData} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 transition hover:bg-gray-200 sm:w-auto">
+              <button onClick={loadData} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 dark:bg-gray-900 px-5 py-2.5 transition hover:bg-gray-200 dark:hover:bg-gray-800 dark:text-white sm:w-auto">
                 <RefreshCw className="w-4 h-4" /> Refresh
               </button>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-white shadow-md transition hover:bg-slate-800 sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-700 sm:w-auto"
               >
                 <Upload className="w-4 h-4" /> Upload
               </button>
@@ -1081,7 +1081,7 @@ export default function Dashboard() {
             <div className="py-16 text-center text-gray-500">Loading...</div>
           ) : filteredDocuments.length === 0 ? (
             <div className="py-16 text-center">
-              <FileText className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+              <FileText className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
               <p className="text-gray-500 text-lg">No documents found.</p>
             </div>
           ) : (
@@ -1154,10 +1154,10 @@ export default function Dashboard() {
           )}
         </div>
       {/* ================= GMAIL SECTION ================= */}
-      <div className="rounded-[1.75rem] border border-white/40 bg-white/85 p-5 shadow-[0_20px_48px_-30px_rgba(15,23,42,0.35)] backdrop-blur-lg sm:p-6 lg:p-8">
+      <div className="rounded-[1.75rem] border border-white/40 dark:border-gray-950/40 dark:bg-gray-950/85 bg-white/85 p-5 shadow-[0_20px_48px_-30px_rgba(15,23,42,0.35)] backdrop-blur-lg sm:p-6 lg:p-8">
         
         <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-3">
             <Mail className="w-6 h-6 text-indigo-600" />
             Gmail Attachments
           </h2>
@@ -1165,9 +1165,9 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={loadGmailFiles}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 transition hover:bg-gray-200 sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-xl dark:text-white bg-gray-100 dark:bg-gray-900 px-5 py-2.5 transition hover:bg-gray-200 dark:hover:bg-gray-800 sm:w-auto"
             >
-              <RefreshCw className="w-4 h-4" /> Reload
+              <RefreshCw className="w-4 h-4 dark:text-white" /> Reload
             </button>
 
             <button
@@ -1206,7 +1206,7 @@ export default function Dashboard() {
                   setGmailLoading(false);
                 }
               }}
-              className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-white shadow-md transition hover:bg-slate-800 hover:shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-700 hover:shadow-lg"
             >
               <Upload className="w-4 h-4" /> Pull Mail
             </button>
@@ -1217,7 +1217,7 @@ export default function Dashboard() {
           <div className="py-16 text-center text-gray-500">Loading...</div>
         ) : filteredGmailFiles.length === 0 ? (
           <div className="py-16 text-center">
-            <Mail className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+            <Mail className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
             <p className="text-gray-500 text-lg">
               No Gmail attachments found.
             </p>
