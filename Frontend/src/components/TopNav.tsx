@@ -227,7 +227,7 @@ export default function TopNav() {
           {/* THE TOGGLE BUTTON */}
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className={`relative flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200 ${
+            className={`relative flex h-11 w-11 items-center justify-center rounded-2xl border dark:border-slate-600 transition-all duration-200 ${
               darkMode
                 ? "border-slate-300 bg-slate-800/80 text-yellow-600 hover:-translate-y-0.5 hover:border-yellow-200 hover:bg-slate-700/80 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
                 : "border-slate-200/80 bg-white/90 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
@@ -245,9 +245,9 @@ export default function TopNav() {
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200 ${
+              className={`relative flex h-11 w-11 items-center justify-center rounded-2xl border dark:border-slate-600 transition-all duration-200 ${
                 showNotifications
-                  ? "border-blue-200 dark:bg-slate-800 bg-blue-50 text-blue-700 shadow-[0_12px_30px_-18px_rgba(37,99,235,0.55)]"
+                  ? "border-blue-200 dark:border-blue-800 dark:bg-blue-950 bg-blue-50 text-blue-700 dark:text-blue-300 shadow-[0_12px_30px_-18px_rgba(37,99,235,0.55)]"
                   : "border-slate-200/80 bg-white/90 dark:bg-slate-800 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 dark:hover:border-slate-400 dark:hover:bg-slate-700 hover:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)]"
               }`}
               aria-label="Open notifications"
@@ -283,7 +283,7 @@ export default function TopNav() {
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
-                        className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+                        className="inline-flex items-center gap-1 rounded-full border border-blue-200 dark:border-blue-800 dark:bg-slate-950 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 transition hover:border-blue-300 hover:bg-blue-50 dark:hover:border-blue-700 dark:hover:bg-blue-900"
                       >
                         <Check className="w-4 h-4" />
                         Mark all as read
@@ -309,34 +309,34 @@ export default function TopNav() {
                         <button
                           key={n._id}
                           onClick={() => openNotification(n)}
-                          className={`group relative flex w-full items-start gap-3 border-b border-slate-100 px-4 py-4 text-left transition last:border-b-0 sm:px-5 ${
+                          className={`group relative flex w-full items-start gap-3 border-b border-slate-100 dark:border-slate-800 px-4 py-4 text-left transition last:border-b-0 sm:px-5 ${
                             isNotificationRead(n)
-                              ? "bg-white hover:bg-slate-50"
-                              : "bg-blue-50/70 hover:bg-blue-50"
+                              ? "bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900"
+                              : "bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-900/70 dark:hover:bg-blue-900"
                           }`}
                         >
                           <div
                             className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
                               isNotificationRead(n)
-                                ? "bg-slate-200"
+                                ? "bg-slate-200 dark:bg-slate-800"
                                 : "bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.16)]"
                             }`}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-3">
-                              <p className="line-clamp-1 pr-1 text-sm font-semibold text-slate-800">
+                              <p className="line-clamp-1 pr-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
                                 {n.title}
                               </p>
                               {!isNotificationRead(n) && (
-                                <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+                                <span className="shrink-0 rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">
                                   New
                                 </span>
                               )}
                             </div>
-                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                               {n.message}
                             </p>
-                            <span className="mt-2 block text-xs font-medium text-slate-400">
+                            <span className="mt-2 block text-xs font-medium text-slate-400 dark:text-slate-600">
                               {formatNotificationTime(n.createdAt)}
                             </span>
                           </div>

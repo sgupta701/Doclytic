@@ -187,7 +187,7 @@ export default function Sidebar() {
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded-lg p-2 transition hover:bg-white/70 dark:hover:bg-gray-800/80"
+            className="rounded-lg p-2 transition hover:bg-white/70 dark:hover:bg-gray-800/80 dark:text-white"
           >
             {collapsed ? <Menu size={20} /> : <X size={20} />}
           </button>

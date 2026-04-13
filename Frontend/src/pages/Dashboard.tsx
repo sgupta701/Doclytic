@@ -906,13 +906,13 @@ export default function Dashboard() {
           <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100/90 dark:text-slate-900">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100/90 dark:text-slate-300">
                 Document Command Center
               </p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                 Welcome back, {profile.full_name}
               </h1>
-              <p className="mt-3 max-w-2xl text-sm text-blue-100 dark:text-slate-900 sm:text-base lg:text-lg">
+              <p className="mt-3 max-w-2xl text-sm text-blue-100 dark:text-slate-300 sm:text-base lg:text-lg">
                 Here&apos;s what&apos;s happening with your documents, priorities, and Gmail attachments today.
               </p>
             </div>
@@ -1011,7 +1011,7 @@ export default function Dashboard() {
     </button>
   </div>
   
-  <p className="text-xs text-gray-500 mb-3">
+  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
     {summaryMode === "recent" 
       ? "Synthesized from your 4 most recent documents" 
       : "Synthesized from your 4 highest priority documents"}
@@ -1024,10 +1024,10 @@ export default function Dashboard() {
             <p className="text-sm text-gray-600">Analyzing latest activity...</p>
           </div>
         ) : latestSummaryError ? (
-          <p className="text-sm text-red-600">{latestSummaryError}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{latestSummaryError}</p>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
               {latestIntegratedSummary || "No integrated summary available."}
             </p>
             
@@ -1040,7 +1040,7 @@ export default function Dashboard() {
                     key={doc._id}
                     onClick={() => navigate(`/document/${doc._id}`)}
                     title={`Open: ${doc.title}`}
-                    className="rounded-lg bg-indigo-50 px-2 py-1 text-sm text-indigo-600 transition hover:scale-105 hover:bg-indigo-100"
+                    className="rounded-lg bg-indigo-50 dark:bg-indigo-950 px-2 py-1 text-sm text-indigo-600 transition hover:scale-105 hover:bg-indigo-100 dark:hover:bg-indigo-900 flex items-center gap-1"
                   >
                     🔗
                   </button>
@@ -1064,7 +1064,7 @@ export default function Dashboard() {
               </button>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-700 sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-300 sm:w-auto"
               >
                 <Upload className="w-4 h-4" /> Upload
               </button>
@@ -1091,14 +1091,14 @@ export default function Dashboard() {
               <div key={doc._id} className="relative h-[220px] w-full"> 
                 <div
                   onClick={() => navigate(`/document/${doc._id}`)}
-                  className="group absolute top-0 left-0 w-full h-full bg-white rounded-2xl p-5 border border-gray-200 shadow-sm 
+                  className="group absolute top-0 left-0 w-full h-full bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm 
                             transition-all duration-300 ease-in-out cursor-pointer flex flex-col
                             hover:w-[120%] hover:-left-[10%] hover:h-fit hover:min-h-[110%] 
                             hover:scale-105 hover:z-[100] hover:shadow-2xl hover:border-blue-200"
                 >
                   <div className="flex flex-col h-full">
                     <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition line-clamp-1 pr-2">
+                      <h3 className="font-bold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 transition line-clamp-1 pr-2">
                         {doc.title}
                       </h3>
                       <div className="flex items-center gap-2 shrink-0">
@@ -1206,7 +1206,7 @@ export default function Dashboard() {
                   setGmailLoading(false);
                 }
               }}
-              className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-700 hover:shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-900 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-300 hover:shadow-lg"
             >
               <Upload className="w-4 h-4" /> Pull Mail
             </button>
@@ -1234,14 +1234,14 @@ export default function Dashboard() {
                 <div key={file._id} className="relative h-[220px] w-full">
                   <div
                     onClick={() => navigate(`/gmail-document/${file._id}`)}
-                    className="group absolute top-0 left-0 w-full h-full bg-white rounded-2xl p-5 border border-gray-200 shadow-sm 
+                    className="group absolute top-0 left-0 w-full h-full bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm 
                               transition-all duration-300 ease-in-out cursor-pointer flex flex-col
                               hover:w-[120%] hover:-left-[10%] hover:h-fit hover:min-h-[110%] 
                               hover:scale-105 hover:z-[100] hover:border-indigo-200 hover:shadow-2xl"
                   >
                     <div className="flex flex-col h-full">
                       <div className="flex justify-between items-start mb-3">
-                        <h3 className="font-bold text-gray-800 group-hover:text-indigo-600 transition line-clamp-1 pr-2">
+                        <h3 className="font-bold text-gray-800 dark:text-gray-200 group-hover:text-indigo-600 transition line-clamp-1 pr-2">
                           {getDisplayFilename(file.filename)}
                         </h3>
                         <div className="flex items-center gap-2 shrink-0">
