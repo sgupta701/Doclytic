@@ -74,15 +74,15 @@ The RAG based chat allowes u to ask any specific questions related to the docume
 
 ---
 
-## 🎥 Demo
+## Demo
 
-👉 **Watch Full Working Demo:**
+**Watch Full Working Demo:**
 
 [Google Drive Demo Link](PASTE_YOUR_DRIVE_LINK_HERE)
 
 ---
 
-## 🛠 Prerequisites
+## Prerequisites
 
 Node.js (v18+)
 Python (3.9+)
@@ -91,7 +91,7 @@ API Keys: Gemini, Groq, and Google Cloud Console
 
 ---
 
-## ⚙️ Environment Setup
+## Environment Setup
 
 You must create .env files in both the Backend and Frontend directories.
 
@@ -124,11 +124,11 @@ VITE_API_URL=http://localhost:5000
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 To run this system, you need to open three separate terminals.
 
-### 🟦 Terminal 1: Node.js Backend (Auth & Logic)
+### Terminal 1: Node.js Backend (Auth & Logic)
 
 ```
 cd Backend
@@ -136,7 +136,7 @@ npm install
 node src/server.js
 ```
 
-### 🟨 Terminal 2: Python Backend (AI & RAG)
+### Terminal 2: Python Backend (AI & RAG)
 
 ```
 cd Backend
@@ -154,7 +154,7 @@ cd python-backend
 uvicorn app:app --reload --port 8000
 ```
 
-### 🟩 Terminal 3: React Frontend (UI)
+### Terminal 3: React Frontend (UI)
 
 ```
 cd Frontend
@@ -164,7 +164,7 @@ npm run dev
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 The project uses a Hybrid Backend Strategy:
 
