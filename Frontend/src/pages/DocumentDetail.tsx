@@ -17,6 +17,7 @@ import DashboardLayout from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
 import DocumentViewer from "../components/DocumentViewer";
 import DocumentChat from "../components/DocumentChat";
+import { getDocumentDisplayName } from "../utils/documentName";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -167,6 +168,11 @@ export default function DocumentDetail() {
 
   useEffect(() => {
     if (document && !detailedSummary && !isGeneratingSummary) {
+      if (!document.python_file_id) {
+        setDetailedSummary(document.summary || "No summary available yet.");
+        return;
+      }
+
       const generateDetailedSummary = async () => {
         setIsGeneratingSummary(true);
         try {
@@ -176,7 +182,13 @@ export default function DocumentDetail() {
           const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || "http://localhost:8000";
           const response = await fetch(`${AI_BASE_URL}/documents/${docId}/detailed-summary`);
           
-          if (!response.ok) throw new Error("Failed to fetch detailed summary");
+          if (!response.ok) {
+            if (response.status === 404) {
+              setDetailedSummary(document.summary || "No summary available yet.");
+              return;
+            }
+            throw new Error("Failed to fetch detailed summary");
+          }
           
           const data = await response.json();
           setDetailedSummary(data.summary);
@@ -253,7 +265,11 @@ export default function DocumentDetail() {
     ? new Date(document.createdAt).toLocaleDateString()
     : "Not available";
   const commentCount = comments.length;
-  const displayFilename = document?.original_filename || document?.title || "Document";
+  const displayFilename = getDocumentDisplayName(document || undefined, "Document");
+  const directPreviewUrl =
+    document?.file_url && /^(https?:|blob:|data:)/i.test(document.file_url)
+      ? document.file_url
+      : undefined;
 
   if (loading || !profile) {
     return (
@@ -369,6 +385,7 @@ export default function DocumentDetail() {
                   <DocumentViewer
                     fileId={document._id}
                     pythonFileId={document.python_file_id}
+                    fileUrl={directPreviewUrl}
                     fileName={displayFilename}
                     fileType={document.file_type}
                     isGmailAttachment={false}

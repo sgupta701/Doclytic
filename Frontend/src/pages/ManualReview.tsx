@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, FileText, X } from "lucide-react";
 import DashboardLayout from "../components/DashboardLayout";
 import { triggerTabPulse } from "../utils/tabPulse";
+import { getDocumentDisplayName } from "../utils/documentName";
 
 interface Department {
   _id: string;
@@ -23,6 +24,7 @@ interface ManualReviewMetadata {
 interface DocumentItem {
   _id: string;
   title: string;
+  original_filename?: string;
   summary?: string;
   createdAt?: string;
   routed_department?: string;
@@ -453,13 +455,38 @@ export default function ManualReview() {
 
               return (
                 <div key={doc._id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="mb-4 flex justify-end">
+                    <button
+                      onClick={async () => {
+                        const confirmed = window.confirm(
+                          "Remove this document from manual review queue and mark prediction as wrong?"
+                        );
+                        if (!confirmed) return;
+                        setDismissingId(doc._id);
+                        try {
+                          await dismissFromQueueWithNegativeFeedback(doc);
+                        } catch (err) {
+                          console.error("Manual review dismiss error:", err);
+                          alert("Could not remove document from manual review queue.");
+                        } finally {
+                          setDismissingId(null);
+                        }
+                      }}
+                      disabled={routingId === doc._id || dismissingId === doc._id}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-60"
+                      title="Remove from queue (negative feedback)"
+                      aria-label="Remove from queue"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] lg:items-start">
                     <div className="min-w-0">
                       <button
                         onClick={() => navigate(`/document/${doc._id}`)}
                         className="text-left text-lg font-semibold text-gray-900 hover:text-blue-600 transition"
                       >
-                        {doc.title}
+                        {getDocumentDisplayName(doc, "Document")}
                       </button>
                       <p className="text-sm text-gray-500 mt-1">{doc.summary || "No summary available."}</p>
                       <div className="mt-3 flex flex-wrap gap-3 text-xs">
@@ -482,7 +509,7 @@ export default function ManualReview() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0 w-full">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:self-start">
                       <select
                         value={selectedDeptByDoc[doc._id] || ""}
                         onChange={(e) => {
@@ -497,7 +524,7 @@ export default function ManualReview() {
                           setSelectedDeptByDoc((prev) => ({ ...prev, [doc._id]: newDept }));
                           setSelectedLabelByDoc((prev) => ({ ...prev, [doc._id]: nextLabel }));
                         }}
-                        className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       >
                         <option value="">Choose department</option>
                         {departmentOptions.map((name) => (
@@ -512,7 +539,7 @@ export default function ManualReview() {
                         onChange={(e) =>
                           setSelectedLabelByDoc((prev) => ({ ...prev, [doc._id]: normalizeLabel(e.target.value) }))
                         }
-                        className="w-full sm:min-w-[220px] px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         disabled={!selectedDeptByDoc[doc._id]}
                       >
                         <option value="">
@@ -531,33 +558,10 @@ export default function ManualReview() {
                       <button
                         onClick={() => onRouteDocument(doc)}
                         disabled={routingId === doc._id || dismissingId === doc._id}
-                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60 inline-flex justify-center items-center gap-2"
+                        className="w-full px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60 inline-flex justify-center items-center gap-2"
                       >
                         <ArrowRight className="w-4 h-4" />
                         {routingId === doc._id ? "Routing..." : "Route"}
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const confirmed = window.confirm(
-                            "Remove this document from manual review queue and mark prediction as wrong?"
-                          );
-                          if (!confirmed) return;
-                          setDismissingId(doc._id);
-                          try {
-                            await dismissFromQueueWithNegativeFeedback(doc);
-                          } catch (err) {
-                            console.error("Manual review dismiss error:", err);
-                            alert("Could not remove document from manual review queue.");
-                          } finally {
-                            setDismissingId(null);
-                          }
-                        }}
-                        disabled={routingId === doc._id || dismissingId === doc._id}
-                        className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-60"
-                        title="Remove from queue (negative feedback)"
-                        aria-label="Remove from queue"
-                      >
-                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

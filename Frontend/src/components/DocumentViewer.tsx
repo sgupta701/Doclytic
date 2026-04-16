@@ -16,6 +16,7 @@ interface DocumentViewerProps {
 
 const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api\/?$/, "");
 const API_URL = `${BASE_URL}/api`;
+const AI_API_URL = (import.meta.env.VITE_AI_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 const extensionToMimeType: Record<string, string> = {
   pdf: "application/pdf",
@@ -177,6 +178,14 @@ export default function DocumentViewer({
     };
   };
 
+  const resolveSourceUrl = (source: string) => {
+    const trimmed = (source || "").trim();
+    if (!trimmed) return "";
+    if (/^(https?:|blob:|data:)/i.test(trimmed)) return trimmed;
+    if (trimmed.startsWith("/")) return `${BASE_URL}${trimmed}`;
+    return `${BASE_URL}/${trimmed}`;
+  };
+
   const effectiveTypeLooksTextLike = (contentType: string) => {
     const type = contentType.toLowerCase();
     return (
@@ -264,7 +273,7 @@ export default function DocumentViewer({
 
     try {
       if (fileUrl) {
-        setViewUrl(fileUrl);
+        setViewUrl(resolveSourceUrl(fileUrl));
         setResolvedFileName(fileName);
         setResolvedFileType(fileType || "");
         setLoading(false);
@@ -292,12 +301,66 @@ export default function DocumentViewer({
           const res = await authFetch(`${API_URL}/documents/${fileId}`);
           if (!res.ok) throw new Error("Failed to load document");
           const data = await res.json();
+          if (data.file_url) {
+            const sourceUrl = resolveSourceUrl(data.file_url);
+            if (/^(https?:|blob:|data:)/i.test((data.file_url || "").trim())) {
+              setResolvedFileName(data.original_filename || data.title || fileName);
+              setResolvedFileType(data.file_type || fileType || "");
+              setViewUrl(sourceUrl);
+              setLoading(false);
+              return;
+            }
+
+            const fileUrlRes = await authFetch(sourceUrl);
+            if (fileUrlRes.ok) {
+              const rawBlob = await fileUrlRes.blob();
+              const resolvedName =
+                getFilenameFromContentDisposition(fileUrlRes.headers.get("content-disposition")) ||
+                fileUrlRes.headers.get("x-original-filename") ||
+                data.original_filename ||
+                data.title ||
+                fileName;
+              const normalized = normalizeBlob(
+                rawBlob,
+                resolvedName,
+                fileUrlRes.headers.get("content-type") || data.file_type || fileType || ""
+              );
+              setResolvedFileName(resolvedName);
+              setResolvedFileType(normalized.contentType);
+              setViewUrl(URL.createObjectURL(normalized.blob));
+              return;
+            }
+          }
+
           const fileRes = await authFetch(`${API_URL}/documents/${fileId}/download`);
-          if (!fileRes.ok) throw new Error("Failed to fetch document bytes");
+          if (!fileRes.ok) {
+            if (pythonFileId) {
+              const pythonRes = await fetch(`${AI_API_URL}/documents/${pythonFileId}/download`);
+              if (!pythonRes.ok) throw new Error("Failed to fetch document bytes");
+              const pythonBlob = await pythonRes.blob();
+              const resolvedName =
+                getFilenameFromContentDisposition(pythonRes.headers.get("content-disposition")) ||
+                pythonRes.headers.get("x-original-filename") ||
+                data.original_filename ||
+                data.title ||
+                fileName;
+              const normalized = normalizeBlob(
+                pythonBlob,
+                resolvedName,
+                pythonRes.headers.get("content-type") || data.file_type || fileType || ""
+              );
+              setResolvedFileName(resolvedName);
+              setResolvedFileType(normalized.contentType);
+              setViewUrl(URL.createObjectURL(normalized.blob));
+              return;
+            }
+            throw new Error("Failed to fetch document bytes");
+          }
           const rawBlob = await fileRes.blob();
           const resolvedName =
             getFilenameFromContentDisposition(fileRes.headers.get("content-disposition")) ||
             fileRes.headers.get("x-original-filename") ||
+            data.original_filename ||
             data.title ||
             fileName;
           const normalized = normalizeBlob(
@@ -312,7 +375,7 @@ export default function DocumentViewer({
       }
     } catch (err) {
       console.error("Document load error:", err);
-      setError("Failed to load document preview");
+      setError("Failed to load document preview. This document may not have a stored file yet.");
     } finally {
       setLoading(false);
     }

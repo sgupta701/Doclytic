@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FileText, Trash2 } from "lucide-react";
 import DashboardLayout from "../components/DashboardLayout";
+import { getDocumentDisplayName } from "../utils/documentName";
+import { getDeleteDocumentErrorMessage } from "../utils/deleteError";
 
 interface Department {
   _id: string;
@@ -12,6 +14,7 @@ interface Department {
 interface DocumentItem {
   _id: string;
   title: string;
+  original_filename?: string;
   summary?: string;
   urgency?: "high" | "medium" | "low";
   priority?: {
@@ -116,10 +119,19 @@ export default function DepartmentDocuments() {
 
   const getDocumentRoutedDepartments = (doc: DocumentItem) => {
     const direct = Array.isArray(doc.routed_departments) ? doc.routed_departments : [];
-    const normalized = direct.map((d) => String(d || "").trim()).filter(Boolean);
+    const seen = new Set<string>();
+    const normalized = direct
+      .map((d) => String(d || "").trim())
+      .filter((d) => d && d.toLowerCase() !== "manual_review")
+      .filter((d) => {
+        const key = d.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     if (normalized.length > 0) return normalized;
     const single = getDocumentDepartmentName(doc);
-    return single ? [single] : [];
+    return single && single.toLowerCase() !== "manual_review" ? [single] : [];
   };
 
   const prettyDepartmentName = (value: string) => {
@@ -164,7 +176,7 @@ export default function DepartmentDocuments() {
       setDocuments((prev) => prev.filter((d) => d._id !== docId));
     } catch (error) {
       console.error("Delete document error:", error);
-      alert("Could not delete document.");
+      alert(getDeleteDocumentErrorMessage(error));
     }
   };
 
@@ -279,7 +291,7 @@ export default function DepartmentDocuments() {
                     <div>
                       <div className="flex justify-between mb-4">
                         <h3 className="font-semibold text-gray-800 group-hover:text-blue-600 transition line-clamp-1">
-                          {doc.title}
+                          {getDocumentDisplayName(doc, "Document")}
                         </h3>
                         <div className="flex items-center gap-2">
                           <span className={`px-3 py-1 rounded-full text-xs border ${getPriorityColor(doc.priority?.priority_level)}`}>

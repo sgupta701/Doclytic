@@ -16,6 +16,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const DOCUMENT_BUCKET_NAME = "documentUploads";
+const PYTHON_BACKEND_URL = (process.env.AI_API_URL || process.env.PYTHON_BACKEND_URL || "http://localhost:8000").replace(/\/$/, "");
 
 const formatDocumentForClient = (doc) => {
   const plain = doc?.toObject ? doc.toObject() : doc;
@@ -279,9 +280,31 @@ export const downloadDocumentFile = async (req, res) => {
     if (!doc) return res.status(404).json({ message: "Document not found" });
 
     if (!doc.storage_file_id) {
-      if (doc.file_url) {
+      if (doc.file_url && /^https?:\/\//i.test(doc.file_url)) {
         return res.redirect(doc.file_url);
       }
+      if (doc.python_file_id) {
+        const pythonRes = await fetch(`${PYTHON_BACKEND_URL}/documents/${doc.python_file_id}/download`);
+        if (pythonRes.ok) {
+          const contentType =
+            pythonRes.headers.get("content-type") || doc.file_type || "application/octet-stream";
+          const originalName =
+            pythonRes.headers.get("content-disposition")?.match(/filename="?([^";]+)"?/i)?.[1] ||
+            pythonRes.headers.get("x-original-filename") ||
+            doc.original_filename ||
+            doc.title ||
+            "document";
+
+          res.set("Content-Type", contentType);
+          res.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, X-Original-Filename");
+          res.set("X-Original-Filename", originalName);
+          res.set("Content-Disposition", `inline; filename="${originalName}"`);
+
+          const pythonArrayBuffer = await pythonRes.arrayBuffer();
+          return res.send(Buffer.from(pythonArrayBuffer));
+        }
+      }
+
       return res.status(404).json({ message: "No DB file available for this document" });
     }
 
@@ -295,6 +318,32 @@ export const downloadDocumentFile = async (req, res) => {
       .findOne({ _id: fileObjectId });
 
     if (!file) {
+      if (doc.python_file_id) {
+        try {
+          const pythonRes = await fetch(`${PYTHON_BACKEND_URL}/documents/${doc.python_file_id}/download`);
+          if (pythonRes.ok) {
+            const contentType =
+              pythonRes.headers.get("content-type") || doc.file_type || "application/octet-stream";
+            const originalName =
+              pythonRes.headers.get("content-disposition")?.match(/filename="?([^";]+)"?/i)?.[1] ||
+              pythonRes.headers.get("x-original-filename") ||
+              doc.original_filename ||
+              doc.title ||
+              "document";
+
+            res.set("Content-Type", contentType);
+            res.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, X-Original-Filename");
+            res.set("X-Original-Filename", originalName);
+            res.set("Content-Disposition", `inline; filename="${originalName}"`);
+
+            const pythonArrayBuffer = await pythonRes.arrayBuffer();
+            return res.send(Buffer.from(pythonArrayBuffer));
+          }
+        } catch (pythonErr) {
+          console.error("Python preview fallback failed:", pythonErr);
+        }
+      }
+
       return res.status(404).json({ message: "Stored file not found" });
     }
 
