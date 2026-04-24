@@ -138,6 +138,20 @@ const isPendingManualReviewDocument = (doc) => {
   );
 };
 
+const isAiPostProcessingUpdate = (body) => {
+  if (!body || typeof body !== "object") return false;
+
+  if (body.suppress_notification) return true;
+
+  return Boolean(
+    body.priority ||
+    body.extraction ||
+    body.original_filename ||
+    body.metadata?.manual_review ||
+    body.routed_department === "manual_review"
+  );
+};
+
 const notifyDepartmentUsersAboutUpload = async (doc, uploaderId) => {
   if (!doc?.department_id) return;
 
@@ -378,6 +392,10 @@ export const updateDocument = async (req, res) => {
     const { id } = req.params;
     const doc = await Document.findById(id);
     if (!doc) return res.status(404).json({ message: "Not found" });
+    const shouldSuppressNotification = isAiPostProcessingUpdate(req.body);
+    if (req.body && typeof req.body === "object") {
+      delete req.body.suppress_notification;
+    }
     const perm = await DocumentPermission.findOne({
       document_id: id,
       user_id: req.userId,
@@ -490,11 +508,13 @@ export const updateDocument = async (req, res) => {
       });
     }
 
-    await sendNotification(
-      doc.uploaded_by,
-      `Your document "${doc.title}" was updated.`,
-      "info"
-    );
+    if (!shouldSuppressNotification) {
+      await sendNotification(
+        doc.uploaded_by,
+        `Your document "${doc.title}" was updated.`,
+        "info"
+      );
+    }
 
     const updatedPriority = await DocumentPriority.findOne({ document_id: id }).lean();
     res.json({

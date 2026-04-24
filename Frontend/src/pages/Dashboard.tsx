@@ -446,6 +446,7 @@ export default function Dashboard() {
           body: JSON.stringify({
             summary: generatedSummary,
             urgency: urgencyFromPriority,
+            suppress_notification: true,
             original_filename: attachmentName,
             ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
             ...(routedDepartment ? { routed_department: routedDepartment } : {}),
@@ -491,6 +492,7 @@ export default function Dashboard() {
               body: JSON.stringify({
                 urgency: urgencyFromPriority,
                 original_filename: attachmentName,
+                suppress_notification: true,
                 ...(aiData.extraction ? { extraction: aiData.extraction } : {}),
                 ...(aiData.priority ? { priority: aiData.priority } : {}),
                 ...(needsManualReview ? { department_id: null } : {}),
@@ -602,6 +604,7 @@ export default function Dashboard() {
               body: JSON.stringify({
                 summary: generatedSummary,
                 urgency: urgencyFromPriority,
+                suppress_notification: true,
                 ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
                 ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
                 ...(routedDepartment ? { routed_department: routedDepartment } : {}),
@@ -690,7 +693,10 @@ export default function Dashboard() {
 
       const updateRes = await authFetch(`${API_URL}/api/documents/${docId}`, {
         method: "PUT",
-        body: JSON.stringify({ summary: generatedSummary }),
+        body: JSON.stringify({
+          summary: generatedSummary,
+          suppress_notification: true,
+        }),
       });
 
       if (updateRes.ok) {

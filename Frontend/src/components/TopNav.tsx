@@ -144,10 +144,11 @@ export default function TopNav() {
       const res = await authFetch(`${API_URL}/api/notifications/my`);
       if (!res.ok) return;
       const data = await res.json();
+      const unreadOnly = Array.isArray(data) ? data.filter((n: NotificationType) => !n.isRead) : [];
 
       if (language === "hi") {
         const translated = await Promise.all(
-          data.map(async (n: NotificationType) => ({
+          unreadOnly.map(async (n: NotificationType) => ({
             ...n,
             title: await translateText(n.title),
             message: await translateText(n.message),
@@ -155,7 +156,7 @@ export default function TopNav() {
         );
         setNotifications(translated);
       } else {
-        setNotifications(data);
+        setNotifications(unreadOnly);
       }
     } catch (err) {
       console.error(err);
@@ -163,18 +164,6 @@ export default function TopNav() {
   };
 
   const openNotification = async (n: NotificationType) => {
-    try {
-      await authFetch(`${API_URL}/api/notifications/mark-read`, {
-        method: "PUT",
-      });
-    } catch (err) {
-      console.error(err);
-    }
-
-    setNotifications((prev) =>
-      prev.map((item) => ({ ...item, isRead: true }))
-    );
-
     if (n.document_id) navigate(`/document/${n.document_id}`);
     setShowNotifications(false);
   };
@@ -188,9 +177,7 @@ export default function TopNav() {
       console.error(err);
     }
 
-    setNotifications((prev) =>
-      prev.map((n) => ({ ...n, isRead: true }))
-    );
+    setNotifications([]);
   };
 
   const unreadCount = notifications.filter((n) => !isNotificationRead(n)).length;
@@ -327,11 +314,6 @@ export default function TopNav() {
                               <p className="line-clamp-1 pr-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
                                 {n.title}
                               </p>
-                              {!isNotificationRead(n) && (
-                                <span className="shrink-0 rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">
-                                  New
-                                </span>
-                              )}
                             </div>
                             <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                               {n.message}

@@ -106,6 +106,7 @@ export default function DocumentUpload() {
                   body: JSON.stringify({
                     summary: aiData.summary || summary,
                     urgency: urgencyFromPriority,
+                    suppress_notification: true,
                     ...(aiData.extraction ? { extraction: aiData.extraction } : {}),
                     ...(aiData.priority ? { priority: aiData.priority } : {}),
                   }),

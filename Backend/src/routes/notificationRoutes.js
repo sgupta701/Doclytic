@@ -33,7 +33,7 @@ router.get("/my", authMiddleware, async (req, res) => {
 
 // ✅ Mark all as read
 router.put("/mark-read", authMiddleware, async (req, res) => {
-  await Notification.updateMany({ user: req.userId }, { isRead: true });
+  await Notification.deleteMany({ user: req.userId });
   res.json({ success: true });
 });
 
