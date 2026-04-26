@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FileText, Trash2 } from "lucide-react";
 import DashboardLayout from "../components/DashboardLayout";
+import { getDocumentDisplayName } from "../utils/documentName";
+import { getDeleteDocumentErrorMessage } from "../utils/deleteError";
 
 interface Department {
   _id: string;
@@ -12,6 +14,7 @@ interface Department {
 interface DocumentItem {
   _id: string;
   title: string;
+  original_filename?: string;
   summary?: string;
   urgency?: "high" | "medium" | "low";
   priority?: {
@@ -116,10 +119,19 @@ export default function DepartmentDocuments() {
 
   const getDocumentRoutedDepartments = (doc: DocumentItem) => {
     const direct = Array.isArray(doc.routed_departments) ? doc.routed_departments : [];
-    const normalized = direct.map((d) => String(d || "").trim()).filter(Boolean);
+    const seen = new Set<string>();
+    const normalized = direct
+      .map((d) => String(d || "").trim())
+      .filter((d) => d && d.toLowerCase() !== "manual_review")
+      .filter((d) => {
+        const key = d.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     if (normalized.length > 0) return normalized;
     const single = getDocumentDepartmentName(doc);
-    return single ? [single] : [];
+    return single && single.toLowerCase() !== "manual_review" ? [single] : [];
   };
 
   const prettyDepartmentName = (value: string) => {
@@ -164,7 +176,7 @@ export default function DepartmentDocuments() {
       setDocuments((prev) => prev.filter((d) => d._id !== docId));
     } catch (error) {
       console.error("Delete document error:", error);
-      alert("Could not delete document.");
+      alert(getDeleteDocumentErrorMessage(error));
     }
   };
 
@@ -249,24 +261,26 @@ export default function DepartmentDocuments() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 md:p-8">
         {loading ? (
-          <div className="py-20 text-center text-gray-500">Loading department documents...</div>
+          <div className="py-20 text-center text-gray-500 dark:text-gray-400">
+            Loading department documents...
+          </div>
         ) : (
           <>
             <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{department?.name ?? "Department"} Documents</h1>
-                <p className="text-gray-600 mt-1">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{department?.name ?? "Department"} Documents</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
                   Routed documents visible only to users in {department?.name ?? "this department"}.
                 </p>
               </div>
             </div>
 
             {documents.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
-                <FileText className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">No documents available for this department.</p>
+              <div className="bg-white dark:bg-slate-950 rounded-2xl p-12 text-center shadow-sm border border-gray-100 dark:border-slate-900">
+                <FileText className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+                <p className="text-gray-500 dark:text-gray-400">No documents available for this department.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -274,12 +288,12 @@ export default function DepartmentDocuments() {
                   <div
                     key={doc._id}
                     onClick={() => navigate(`/document/${doc._id}`)}
-                    className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+                    className="group bg-white dark:bg-slate-950 rounded-2xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex justify-between mb-4">
-                        <h3 className="font-semibold text-gray-800 group-hover:text-blue-600 transition line-clamp-1">
-                          {doc.title}
+                        <h3 className="font-semibold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition line-clamp-1">
+                          {getDocumentDisplayName(doc, "Document")}
                         </h3>
                         <div className="flex items-center gap-2">
                           <span className={`px-3 py-1 rounded-full text-xs border ${getPriorityColor(doc.priority?.priority_level)}`}>
@@ -290,7 +304,7 @@ export default function DepartmentDocuments() {
                               e.stopPropagation();
                               handleDeleteDocument(doc._id);
                             }}
-                            className="p-1 text-gray-400 hover:text-red-500 transition"
+                            className="p-1 text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition"
                             title="Delete document"
                             aria-label="Delete document"
                           >
@@ -298,12 +312,12 @@ export default function DepartmentDocuments() {
                           </button>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-500 line-clamp-3 mb-4">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3 mb-4">
                         {doc.summary || "No summary available."}
                       </p>
                     </div>
 
-                    <div className="flex justify-between text-xs text-gray-400 items-center">
+                    <div className="flex justify-between text-xs text-gray-400 dark:text-gray-600 items-center">
                       <span>{doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : ""}</span>
                       {getDepartmentBadgeText(doc) && (
                         <span

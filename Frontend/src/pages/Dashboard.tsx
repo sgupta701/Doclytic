@@ -14,6 +14,8 @@ import {
 
 import DashboardLayout from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
+import { getAttachmentDisplayName, getDocumentDisplayName, getSearchableDisplayName } from "../utils/documentName";
+import { getDeleteDocumentErrorMessage } from "../utils/deleteError";
 import { triggerTabPulse } from "../utils/tabPulse";
 import { fetchIntegratedSummary } from "../api/summarizerAPI";
 
@@ -28,6 +30,7 @@ interface DocumentWithDetails {
   file_url?: string;
   python_file_id?: string;
   title: string;
+  original_filename?: string;
   summary: string;
   urgency: "high" | "medium" | "low";
   priority?: {
@@ -65,6 +68,9 @@ interface GmailFile {
     messageId?: string;
     routedDepartment?: string;
     linkedDocumentId?: string;
+    originalFilename?: string;
+    priorityScore?: number;
+    priorityLevel?: "Low" | "Medium" | "High" | "Critical";
   };
   summary?: string;
   urgency?: "high" | "medium" | "low";
@@ -109,8 +115,6 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const API_URL = `${BASE_URL}`.replace(/\/$/, "");
 const AI_BASE_URL = "http://127.0.0.1:8000";
 
-const getDisplayFilename = (name: string) => name.replace(/^\d{10,}[-_]+/, "");
-
 export async function authFetch(url: string, options: RequestInit = {}) {
   const token = localStorage.getItem("token");
 
@@ -143,7 +147,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [latestIntegratedSummary, setLatestIntegratedSummary] = useState("");
   const [, setLatestSummaryTitles] = useState<string[]>([]);
-  const [latestSummaryDocs, setLatestSummaryDocs] = useState<{_id: string, title: string}[]>([]);
+  const [latestSummaryDocs, setLatestSummaryDocs] = useState<{_id: string, title: string, displayName: string}[]>([]);
   const [latestSummaryLoading, setLatestSummaryLoading] = useState(false);
   const [latestSummaryError, setLatestSummaryError] = useState<string | null>(null);
 
@@ -235,14 +239,20 @@ export default function Dashboard() {
 
     const latestFour = sorted.slice(0, 4);
 
-    setLatestSummaryTitles(latestFour.map((d) => d.title || "Untitled"));
-    setLatestSummaryDocs(latestFour.map((d) => ({ _id: d._id, title: d.title || "Untitled" })));
+    setLatestSummaryTitles(latestFour.map((d) => getDocumentDisplayName(d, "Untitled")));
+    setLatestSummaryDocs(
+      latestFour.map((d) => ({
+        _id: d._id,
+        title: d.title || "Untitled",
+        displayName: getDocumentDisplayName(d, "Untitled"),
+      }))
+    );
 
     const payloadDocuments = latestFour
       .filter((d) => (d.summary || "").trim().length > 0)
       .map((d) => ({
         _id: d._id,
-        title: d.title || "Untitled",
+        title: getDocumentDisplayName(d, "Untitled"),
         summary: d.summary,
       }));
 
@@ -407,6 +417,8 @@ export default function Dashboard() {
       const res = await authFetch(`${API_URL}/api/mail/download/${file._id}`);
       if (!res.ok) throw new Error(`Download failed for ${file.filename}`);
 
+      const attachmentName = getAttachmentDisplayName(file, "Attachment");
+      const attachmentStem = attachmentName.replace(/\.[^/.]+$/, "");
       const blob = await res.blob();
       const uploadFile = new File([blob], file.filename, { type: blob.type });
       const aiData = await runClassifierAndSummarizerNoMail(uploadFile);
@@ -415,6 +427,7 @@ export default function Dashboard() {
       const needsManualReview = isManualReviewRequired(aiData);
       const suggestedDepartment = getSuggestedDepartmentFromLabel(aiData.classification?.label);
       const priorityLevel = aiData.priority?.priority_level || "Medium";
+      const priorityScore = aiData.priority?.priority_score;
       const urgencyFromPriority =
         priorityLevel === "Critical" || priorityLevel === "High"
           ? "high"
@@ -433,6 +446,8 @@ export default function Dashboard() {
           body: JSON.stringify({
             summary: generatedSummary,
             urgency: urgencyFromPriority,
+            suppress_notification: true,
+            original_filename: attachmentName,
             ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
             ...(routedDepartment ? { routed_department: routedDepartment } : {}),
             ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
@@ -457,7 +472,7 @@ export default function Dashboard() {
         // Create a normal document entry for every gmail attachment so it can appear in department pages.
         const createFormData = new FormData();
         createFormData.append("file", uploadFile);
-        createFormData.append("title", file.filename.replace(/\.[^/.]+$/, ""));
+        createFormData.append("title", attachmentStem);
         createFormData.append("summary", generatedSummary);
         if (needsManualReview) createFormData.append("routed_department", "manual_review");
         if (routedDepartmentId) createFormData.append("department_id", routedDepartmentId);
@@ -476,6 +491,8 @@ export default function Dashboard() {
               method: "PUT",
               body: JSON.stringify({
                 urgency: urgencyFromPriority,
+                original_filename: attachmentName,
+                suppress_notification: true,
                 ...(aiData.extraction ? { extraction: aiData.extraction } : {}),
                 ...(aiData.priority ? { priority: aiData.priority } : {}),
                 ...(needsManualReview ? { department_id: null } : {}),
@@ -506,6 +523,8 @@ export default function Dashboard() {
             summary: generatedSummary,
             routedDepartment,
             linkedDocumentId,
+            priorityScore,
+            priorityLevel,
           }),
         }
       );
@@ -527,6 +546,8 @@ export default function Dashboard() {
                   ...(f.metadata || ({} as GmailFile["metadata"])),
                   routedDepartment: routedDepartment || undefined,
                   linkedDocumentId,
+                  priorityScore,
+                  priorityLevel,
                 },
               }
             : f
@@ -583,6 +604,7 @@ export default function Dashboard() {
               body: JSON.stringify({
                 summary: generatedSummary,
                 urgency: urgencyFromPriority,
+                suppress_notification: true,
                 ...(needsManualReview ? { routed_department: "manual_review", department_id: null } : {}),
                 ...(routedDepartmentId ? { department_id: routedDepartmentId } : {}),
                 ...(routedDepartment ? { routed_department: routedDepartment } : {}),
@@ -671,7 +693,10 @@ export default function Dashboard() {
 
       const updateRes = await authFetch(`${API_URL}/api/documents/${docId}`, {
         method: "PUT",
-        body: JSON.stringify({ summary: generatedSummary }),
+        body: JSON.stringify({
+          summary: generatedSummary,
+          suppress_notification: true,
+        }),
       });
 
       if (updateRes.ok) {
@@ -713,7 +738,7 @@ export default function Dashboard() {
       if (summarizingId === docId) setSummarizingId(null);
     } catch (error) {
       console.error("Delete document error:", error);
-      alert("Could not delete document.");
+      alert(getDeleteDocumentErrorMessage(error));
     }
   };
 
@@ -740,16 +765,35 @@ export default function Dashboard() {
 
   const getUrgencyColor = (u: string) =>
     ({
+      critical: "bg-rose-100 text-rose-800 border-rose-200",
       high: "bg-red-100 text-red-800 border-red-200",
       medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
       low: "bg-green-100 text-green-800 border-green-200",
-      unscored: "bg-slate-100 text-slate-700 border-slate-200",
+      pending: "bg-slate-100 text-slate-700 border-slate-200",
     }[u] || "");
 
-  const getGmailUrgencyLabel = (file: GmailFile): "high" | "medium" | "low" | "unscored" => {
-    const raw = (file.urgency || "").toLowerCase();
-    if (raw === "high" || raw === "medium" || raw === "low") return raw;
-    return "unscored";
+  const getPriorityLevelFromScore = (score?: number): "Low" | "Medium" | "High" | "Critical" | null => {
+    if (typeof score !== "number" || Number.isNaN(score)) return null;
+    if (score >= 80) return "Critical";
+    if (score >= 60) return "High";
+    if (score >= 35) return "Medium";
+    return "Low";
+  };
+
+  const getGmailPriorityInfo = (file: GmailFile) => {
+    const linkedDocumentId = file.metadata?.linkedDocumentId;
+    const linkedDocument = linkedDocumentId
+      ? documents.find((doc) => doc._id === linkedDocumentId)
+      : undefined;
+    const linkedPriority = linkedDocument?.priority;
+    const score = file.metadata?.priorityScore ?? linkedPriority?.priority_score;
+    const level = file.metadata?.priorityLevel ?? linkedPriority?.priority_level ?? getPriorityLevelFromScore(score);
+
+    return {
+      level,
+      score,
+      displayLabel: level || "Pending",
+    };
   };
 
   const getGmailDepartmentLabel = (file: GmailFile): string => {
@@ -788,6 +832,7 @@ export default function Dashboard() {
       const trimmed = String(value || "").trim();
       if (!trimmed) return;
       const key = trimmed.toLowerCase();
+      if (key === "manual_review") return;
       if (seen.has(key)) return;
       seen.add(key);
       names.push(trimmed);
@@ -809,12 +854,22 @@ export default function Dashboard() {
     return "Unrouted";
   };
 
+  const isDocumentProcessing = (doc: DocumentWithDetails) =>
+    (doc.summary || "").trim().toLowerCase() === "processing your document...";
+
+  const getDocumentPriorityLabel = (doc: DocumentWithDetails) =>
+    isDocumentProcessing(doc) ? "Processing" : (doc.priority?.priority_level || "Low");
+
+  const getDocumentDepartmentChipLabel = (doc: DocumentWithDetails) =>
+    isDocumentProcessing(doc) ? "Processing" : getDocumentDepartmentLabel(doc);
+
   const getPriorityColor = (level?: string) =>
     ({
       Critical: "bg-rose-100 text-rose-800 border-rose-200",
       High: "bg-orange-100 text-orange-800 border-orange-200",
       Medium: "bg-amber-100 text-amber-800 border-amber-200",
       Low: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      Processing: "bg-slate-100 text-slate-700 border-slate-200",
     }[level || ""] || "bg-slate-100 text-slate-700 border-slate-200");
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -855,7 +910,9 @@ export default function Dashboard() {
     ? gmailFiles.filter((file) => {
         if (normalizedSearchQuery === "") return true;
 
-        const searchableFilename = getDisplayFilename(file.filename || "").toLowerCase();
+        const searchableFilename = getSearchableDisplayName(
+          file.metadata?.originalFilename || file.filename || ""
+        ).toLowerCase();
         const searchableSubject = (file.metadata?.subject || "").toLowerCase();
         const searchableSender = (file.metadata?.from || "").toLowerCase();
         const searchableSummary = (file.summary || "").toLowerCase();
@@ -906,13 +963,13 @@ export default function Dashboard() {
           <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100/90 dark:text-slate-900">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-100/90 dark:text-slate-300">
                 Document Command Center
               </p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                 Welcome back, {profile.full_name}
               </h1>
-              <p className="mt-3 max-w-2xl text-sm text-blue-100 dark:text-slate-900 sm:text-base lg:text-lg">
+              <p className="mt-3 max-w-2xl text-sm text-blue-100 dark:text-slate-300 sm:text-base lg:text-lg">
                 Here&apos;s what&apos;s happening with your documents, priorities, and Gmail attachments today.
               </p>
             </div>
@@ -947,9 +1004,9 @@ export default function Dashboard() {
         <div className="rounded-[1.5rem] border border-white/60 dark:border-gray-950/60 bg-white/90 dark:bg-gray-950/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(37,99,235,0.25)]">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-slate-500">Total Documents</p>
+              <p className="text-sm text-slate-500">Recent Documents</p>
               <h2 className="mt-1 text-3xl font-bold text-slate-800 dark:text-slate-200">
-                {documents.length}
+                {filteredDocuments.length}
               </h2>
             </div>
             <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/50 p-3 text-blue-600 dark:text-blue-400">
@@ -964,7 +1021,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-slate-500">High Priority</p>
               <h2 className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400">
-                {documents.filter((d) => {
+                {filteredDocuments.filter((d) => {
                   const level = d.priority?.priority_level;
                   return d.urgency === "high" || level === "High" || level === "Critical";
                 }).length}
@@ -1011,7 +1068,7 @@ export default function Dashboard() {
     </button>
   </div>
   
-  <p className="text-xs text-gray-500 mb-3">
+  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
     {summaryMode === "recent" 
       ? "Synthesized from your 4 most recent documents" 
       : "Synthesized from your 4 highest priority documents"}
@@ -1024,10 +1081,10 @@ export default function Dashboard() {
             <p className="text-sm text-gray-600">Analyzing latest activity...</p>
           </div>
         ) : latestSummaryError ? (
-          <p className="text-sm text-red-600">{latestSummaryError}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{latestSummaryError}</p>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
               {latestIntegratedSummary || "No integrated summary available."}
             </p>
             
@@ -1039,7 +1096,7 @@ export default function Dashboard() {
                   <button
                     key={doc._id}
                     onClick={() => navigate(`/document/${doc._id}`)}
-                    title={`Open: ${doc.title}`}
+                    title={`Open: ${doc.displayName}`}
                     className="rounded-lg bg-indigo-50 px-2 py-1 text-sm text-indigo-600 transition hover:scale-105 hover:bg-indigo-100"
                   >
                     🔗
@@ -1064,7 +1121,7 @@ export default function Dashboard() {
               </button>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-700 sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-300 sm:w-auto"
               >
                 <Upload className="w-4 h-4" /> Upload
               </button>
@@ -1091,19 +1148,19 @@ export default function Dashboard() {
               <div key={doc._id} className="relative h-[220px] w-full"> 
                 <div
                   onClick={() => navigate(`/document/${doc._id}`)}
-                  className="group absolute top-0 left-0 w-full h-full bg-white rounded-2xl p-5 border border-gray-200 shadow-sm 
+                  className="group absolute top-0 left-0 w-full h-full bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm 
                             transition-all duration-300 ease-in-out cursor-pointer flex flex-col
                             hover:w-[120%] hover:-left-[10%] hover:h-fit hover:min-h-[110%] 
                             hover:scale-105 hover:z-[100] hover:shadow-2xl hover:border-blue-200"
                 >
                   <div className="flex flex-col h-full">
                     <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition line-clamp-1 pr-2">
+                      <h3 className="font-bold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 transition line-clamp-1 pr-2">
                         {doc.title}
                       </h3>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase ${getPriorityColor(doc.priority?.priority_level)}`}>
-                          {doc.priority?.priority_level || "Low"}
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase ${getPriorityColor(getDocumentPriorityLabel(doc))}`}>
+                          {getDocumentPriorityLabel(doc)}
                         </span>
                         <button
                           onClick={(e) => {
@@ -1133,15 +1190,19 @@ export default function Dashboard() {
                         <Clock className="w-3 h-3" />
                         {new Date(doc.createdAt).toLocaleDateString()}
                       </span>
-                      {(doc.department || doc.routed_department || (doc.routed_departments?.length ?? 0) > 0) && (
+                      {(doc.department || doc.routed_department || (doc.routed_departments?.length ?? 0) > 0 || isDocumentProcessing(doc)) && (
                         <span
                           className="px-2 py-0.5 rounded-md font-medium"
                           style={{
-                            backgroundColor: `${doc.department?.color || "#475569"}15`,
-                            color: doc.department?.color || "#475569",
+                            backgroundColor: isDocumentProcessing(doc)
+                              ? "#e2e8f015"
+                              : `${doc.department?.color || "#475569"}15`,
+                            color: isDocumentProcessing(doc)
+                              ? "#475569"
+                              : doc.department?.color || "#475569",
                           }}
                         >
-                          {getDocumentDepartmentLabel(doc)}
+                          {getDocumentDepartmentChipLabel(doc)}
                         </span>
                       )}
                     </div>
@@ -1206,7 +1267,7 @@ export default function Dashboard() {
                   setGmailLoading(false);
                 }
               }}
-              className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-800 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-700 hover:shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-400 px-5 py-2.5 text-white dark:text-gray-900 shadow-md transition hover:bg-slate-800 dark:hover:bg-slate-300 hover:shadow-lg"
             >
               <Upload className="w-4 h-4" /> Pull Mail
             </button>
@@ -1226,7 +1287,7 @@ export default function Dashboard() {
           <div className="max-h-[calc(220px*2+1.25rem)] overflow-y-auto pr-2">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {filteredGmailFiles.map((file) => {
-              const urgency = getGmailUrgencyLabel(file);
+              const priority = getGmailPriorityInfo(file);
               const routedDepartment = getGmailDepartmentLabel(file);
               const badgeStyle = getDepartmentBadgeStyle(routedDepartment);
 
@@ -1234,7 +1295,7 @@ export default function Dashboard() {
                 <div key={file._id} className="relative h-[220px] w-full">
                   <div
                     onClick={() => navigate(`/gmail-document/${file._id}`)}
-                    className="group absolute top-0 left-0 w-full h-full bg-white rounded-2xl p-5 border border-gray-200 shadow-sm 
+                    className="group absolute top-0 left-0 w-full h-full bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm 
                               transition-all duration-300 ease-in-out cursor-pointer flex flex-col
                               hover:w-[120%] hover:-left-[10%] hover:h-fit hover:min-h-[110%] 
                               hover:scale-105 hover:z-[100] hover:border-indigo-200 hover:shadow-2xl"
@@ -1242,11 +1303,11 @@ export default function Dashboard() {
                     <div className="flex flex-col h-full">
                       <div className="flex justify-between items-start mb-3">
                         <h3 className="font-bold text-gray-800 group-hover:text-indigo-600 transition line-clamp-1 pr-2">
-                          {getDisplayFilename(file.filename)}
+                          {getAttachmentDisplayName(file, "Attachment")}
                         </h3>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase ${getUrgencyColor(urgency)}`}>
-                            {urgency}
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase ${getUrgencyColor(priority.level ? priority.level.toLowerCase() : "pending")}`}>
+                            {priority.displayLabel}
                           </span>
                           <button
                             onClick={(e) => {

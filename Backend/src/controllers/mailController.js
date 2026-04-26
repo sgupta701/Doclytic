@@ -379,7 +379,7 @@ export const generateGmailSummary = async (req, res) => {
     }
 
     const { fileId } = req.params;
-    const { summary, routedDepartment, linkedDocumentId } = req.body;
+    const { summary, routedDepartment, linkedDocumentId, priorityScore, priorityLevel } = req.body;
 
     const file = await mongoose.connection.db
       .collection("mailUploads.files")
@@ -399,6 +399,12 @@ export const generateGmailSummary = async (req, res) => {
     }
     if (linkedDocumentId) {
       updateSet["metadata.linkedDocumentId"] = linkedDocumentId;
+    }
+    if (typeof priorityScore === "number") {
+      updateSet["metadata.priorityScore"] = priorityScore;
+    }
+    if (typeof priorityLevel === "string" && priorityLevel.trim()) {
+      updateSet["metadata.priorityLevel"] = priorityLevel.trim();
     }
 
     const result = await mongoose.connection.db

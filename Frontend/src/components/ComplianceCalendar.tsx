@@ -297,81 +297,81 @@ export default function ComplianceCalendar() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-6">
         <div className="max-w-[1800px] mx-auto">
           
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Compliance Calendar</h1>
-              <p className="text-gray-600">Track and manage departmental document deadlines.</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Compliance Calendar</h1>
+              <p className="text-gray-600 dark:text-gray-400">Track and manage departmental document deadlines.</p>
             </div>
             
             <div className="flex gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">
+              <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 font-medium transition-colors">
                 <Download className="w-4 h-4" /> Export CSV
               </button>
-              <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg text-white hover:bg-blue-700 font-medium transition-colors shadow-sm">
+              <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-400 rounded-lg text-white dark:text-slate-900 dark:hover:bg-blue-500 hover:bg-blue-700 font-medium transition-colors shadow-sm">
                 <Plus className="w-4 h-4" /> Add Deadline
               </button>
             </div>
           </div>
 
           {highRiskCount > 0 && (
-            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm flex items-center justify-between">
+            <div className="mb-6 bg-red-50 dark:bg-red-950/60 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                 <div>
-                  <h3 className="text-red-900 font-bold text-sm">Action Required</h3>
-                  <p className="text-red-700 text-sm">There are <strong>{highRiskCount} critical pending deadlines</strong> due within 24 hours.</p>
+                  <h3 className="text-red-900 dark:text-red-300 font-bold text-sm">Action Required</h3>
+                  <p className="text-red-700 dark:text-red-400 text-sm">There are <strong>{highRiskCount} critical pending deadlines</strong> due within 24 hours.</p>
                 </div>
               </div>
               <button 
                 onClick={toggleUrgent} 
-                className={`px-4 py-1.5 text-sm font-semibold rounded transition-colors ${showUrgentOnly ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
+                className={`px-4 py-1.5 text-sm font-semibold rounded transition-colors ${showUrgentOnly ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/80'}`}
               >
                 {showUrgentOnly ? "Clear Filter" : "View Urgent"}
               </button>
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-200 flex flex-wrap justify-between items-center gap-4">
-            <div className="flex bg-gray-100 p-1 rounded-lg">
-              <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+          <div className="bg-white dark:bg-slate-950 rounded-xl shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-4">
+            <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+              <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-950 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'}`}>
                 <Calendar className="w-4 h-4" /> Calendar
               </button>
-              <button onClick={() => setViewMode('kanban')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setViewMode('kanban')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'kanban' ? 'bg-white dark:bg-slate-950 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'}`}>
                 <Kanban className="w-4 h-4" /> Board
               </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg">
-                <Search className="w-4 h-4 text-gray-500" />
+              <div className="flex items-center gap-2 text-sm bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-600 px-3 py-1.5 rounded-lg">
+                <Search className="w-4 h-4 text-gray-500 dark:text-gray-300" />
                 <input 
                   type="date" 
                   value={searchDate} 
                   onChange={(e) => setSearchDate(e.target.value)} 
-                  className="bg-transparent border-none text-gray-700 font-medium focus:ring-0 outline-none w-[120px] text-sm cursor-pointer" 
+                  className="bg-transparent border-none text-gray-700 dark:text-gray-300 font-medium focus:ring-0 outline-none w-[120px] text-sm cursor-pointer" 
                   title="Search Specific Date"
                 />
                 {searchDate && (
                   <button onClick={() => setSearchDate("")} title="Clear Date Search">
-                    <X className="w-4 h-4 text-red-500 hover:bg-red-100 rounded-full" />
+                    <X className="w-4 h-4 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-full" />
                   </button>
                 )}
               </div>
 
-              <div className="h-6 w-px bg-gray-300"></div>
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
 
               <div className="flex items-center gap-2 text-sm">
-                <Filter className="w-4 h-4 text-gray-500" />
-                <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="border-none bg-transparent font-medium text-gray-700 focus:ring-0 cursor-pointer text-sm p-0 pr-6">
+                <Filter className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="border-none bg-transparent font-medium text-gray-700 dark:text-gray-300 focus:ring-0 cursor-pointer text-sm p-0 pr-6">
                   <option value="all">All Months</option>
                   {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
                 </select>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="border-none bg-transparent font-medium text-gray-700 focus:ring-0 cursor-pointer text-sm p-0 pr-6">
+                <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="border-none bg-transparent font-medium text-gray-700 dark:text-gray-300 focus:ring-0 cursor-pointer text-sm p-0 pr-6">
                   <option value="all">All Depts</option>
                   {departments.map((d, i) => <option key={i} value={d}>{d}</option>)}
                 </select>
@@ -383,24 +383,24 @@ export default function ComplianceCalendar() {
           {viewMode === "calendar" && (
             <div className="space-y-8">
               {calendarGrid.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">No events found for this filter.</div>
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">No events found for this filter.</div>
               ) : (
                 calendarGrid.map(monthData => (
-                  <div key={monthData.monthIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-                      <h2 className="text-xl font-bold text-gray-800">{monthData.monthName} {new Date().getFullYear()}</h2>
+                  <div key={monthData.monthIndex} className="bg-white dark:bg-gray-950 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 overflow-hidden">
+                    <div className="bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-600 px-6 py-4">
+                      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-300">{monthData.monthName} {new Date().getFullYear()}</h2>
                     </div>
                     
-                    <div className="grid grid-cols-7 gap-px bg-gray-200">
+                    <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-600">
                       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                        <div key={d} className="bg-white py-2 text-center text-xs font-semibold text-gray-500 uppercase">{d}</div>
+                        <div key={d} className="bg-white dark:bg-gray-950 py-2 text-center text-xs font-semibold text-gray-500 uppercase">{d}</div>
                       ))}
                       
                       {monthData.days.map((dayData, idx) => (
-                        <div key={idx} className="bg-white min-h-[140px] p-2 hover:bg-gray-50 transition-colors flex flex-col group/day">
+                        <div key={idx} className="bg-white dark:bg-gray-950 min-h-[140px] p-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex flex-col group/day">
                           
                           <div className="flex justify-between items-start mb-2 group-parent">
-                            <span className={`text-sm font-semibold ${dayData.documents.length > 0 || dateNotes[dayData.dateStr] ? 'text-gray-900' : 'text-gray-400'}`}>
+                            <span className={`text-sm font-semibold ${dayData.documents.length > 0 || dateNotes[dayData.dateStr] ? 'text-gray-900 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
                               {dayData.day}
                             </span>
                             <button 
@@ -409,7 +409,7 @@ export default function ComplianceCalendar() {
                                 setActiveNoteText(dateNotes[dayData.dateStr] || "");
                                 setIsNoteModalOpen(true);
                               }}
-                              className={`p-1 rounded-md transition-opacity ${dateNotes[dayData.dateStr] ? 'opacity-100 text-yellow-600 bg-yellow-50' : 'opacity-0 group-hover/day:opacity-100 text-gray-400 hover:bg-gray-100 hover:text-yellow-600'}`}
+                              className={`p-1 rounded-md transition-opacity ${dateNotes[dayData.dateStr] ? 'opacity-100 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30' : 'opacity-0 group-hover/day:opacity-100 text-gray-400 hover:bg-gray-100 hover:text-yellow-600'}`}
                               title="Add Sticky Note"
                             >
                               <StickyNote className="w-3.5 h-3.5" />
@@ -417,7 +417,7 @@ export default function ComplianceCalendar() {
                           </div>
                           
                           {dateNotes[dayData.dateStr] && (
-                            <div className="bg-yellow-100 border border-yellow-200 text-yellow-800 text-[11px] p-1.5 rounded-sm mb-2 shadow-sm whitespace-pre-wrap leading-tight cursor-pointer"
+                            <div className="bg-yellow-100 dark:bg-yellow-800/70 border border-yellow-200 dark:border-yellow-600 text-yellow-800 dark:text-yellow-300 text-[11px] p-1.5 rounded-sm mb-2 shadow-sm whitespace-pre-wrap leading-tight cursor-pointer"
                                  onClick={() => { setActiveNoteDate(dayData.dateStr); setActiveNoteText(dateNotes[dayData.dateStr]); setIsNoteModalOpen(true); }}>
                               {dateNotes[dayData.dateStr]}
                             </div>
@@ -453,7 +453,7 @@ export default function ComplianceCalendar() {
                                         onClick={(e) => e.stopPropagation()}
                                         onBlur={() => setEditingStatusId(null)}
                                         onChange={(e) => handleStatusChange(doc.id, e.target.value)}
-                                        className="text-[10px] uppercase font-bold text-gray-900 bg-white border rounded outline-none p-0.5"
+                                        className="text-[10px] uppercase font-bold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 border rounded outline-none p-0.5"
                                       >
                                         {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                                       </select>
@@ -480,7 +480,7 @@ export default function ComplianceCalendar() {
                                         onClick={(e) => e.stopPropagation()}
                                         onBlur={() => setEditingDeptId(null)}
                                         onChange={(e) => handleDepartmentChange(doc.id, e.target.value)}
-                                        className="text-[10px] uppercase font-bold text-gray-900 bg-white border rounded outline-none p-0.5"
+                                        className="text-[10px] uppercase font-bold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 border rounded outline-none p-0.5"
                                       >
                                         {departments.map(d => <option key={d} value={d}>{d}</option>)}
                                       </select>
@@ -505,7 +505,7 @@ export default function ComplianceCalendar() {
                             {dayData.documents.length > 2 && (
                               <button 
                                 onClick={() => setSelectedDayDocs(dayData.documents)}
-                                className="w-full text-center text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 py-1 rounded transition-colors"
+                                className="w-full text-center text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/60 dark:hover:bg-blue-900 hover:bg-blue-100 py-1 rounded transition-colors"
                               >
                                 + {dayData.documents.length - 2} more
                               </button>
@@ -526,13 +526,13 @@ export default function ComplianceCalendar() {
               {['pending', 'in-progress', 'completed', 'delayed'].map(statusCol => (
                 <div 
                   key={statusCol} 
-                  className="bg-gray-100 rounded-xl p-4 flex flex-col h-[700px] transition-colors hover:bg-gray-200"
+                  className="bg-gray-100 dark:bg-gray-900/70 rounded-xl p-4 flex flex-col h-[700px] transition-colors hover:bg-gray-200"
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, statusCol)}
                 >
-                  <h3 className="font-bold text-gray-700 uppercase text-sm mb-4 tracking-wider flex justify-between">
+                  <h3 className="font-bold text-gray-700 dark:text-gray-300 uppercase text-sm mb-4 tracking-wider flex justify-between">
                     {statusCol.replace('-', ' ')}
-                    <span className="bg-gray-300 text-gray-700 px-2 py-0.5 rounded-full text-xs">
+                    <span className="bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
                       {filteredDocuments.filter(d => d.status === statusCol).length}
                     </span>
                   </h3>
@@ -543,7 +543,7 @@ export default function ComplianceCalendar() {
                         key={doc.id} 
                         draggable 
                         onDragStart={(e) => handleDragStart(e, doc.id)}
-                        className={`group bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-grab active:cursor-grabbing transition-all duration-300 ease-out hover:scale-[1.03] hover:shadow-xl hover:border-blue-400`}
+                        className={`group bg-white dark:bg-gray-950 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 cursor-grab active:cursor-grabbing transition-all duration-300 ease-out hover:scale-[1.03] hover:shadow-xl hover:border-blue-400 `}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase shadow-sm ${getEventStyle(doc.date, doc.status)}`}>
@@ -551,13 +551,13 @@ export default function ComplianceCalendar() {
                           </span>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleHideFromCalendar(doc.id); }}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-all"
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-600 dark:hover:text-red-500 dark:hover:bg-red-800/70 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-all"
                             title="Remove from Calendar"
                           >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
-                        <h4 className="font-bold text-gray-900 mb-1">{doc.documentName}</h4>
+                        <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-1">{doc.documentName}</h4>
                         
                         <div className="flex items-center gap-2 group/dept relative mt-2">
                           {editingDeptId === doc.id ? (
@@ -566,18 +566,18 @@ export default function ComplianceCalendar() {
                               onClick={(e) => e.stopPropagation()}
                               onBlur={() => setEditingDeptId(null)}
                               onChange={(e) => handleDepartmentChange(doc.id, e.target.value)}
-                              className="text-xs uppercase font-bold text-gray-700 bg-white border border-blue-400 rounded outline-none p-1 w-full"
+                              className="text-xs uppercase font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-950 border border-blue-400 rounded outline-none p-1 w-full"
                             >
                               {departments.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
                           ) : (
                             <>
-                              <p className="text-xs text-gray-500 flex items-center gap-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                 <FileText className="w-3 h-3" /> {doc.department}
                               </p>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); setEditingDeptId(doc.id); }}
-                                className="opacity-0 group-hover/dept:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity"
+                                className="opacity-0 group-hover/dept:opacity-100 text-gray-400 dark:text-gray-600 dark:hover:text-blue-600 hover:text-blue-600 transition-opacity"
                                 title="Edit Department"
                               >
                                 ✏️
@@ -586,7 +586,7 @@ export default function ComplianceCalendar() {
                           )}
                         </div>
                         
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] uppercase font-bold text-blue-600 mt-3 pt-2 border-t border-gray-100 flex items-center gap-1">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mt-3 pt-2 border-t border-gray-100 dark:border-gray-600 flex items-center gap-1">
                           Drag to update status
                         </div>
                       </div>
@@ -603,42 +603,42 @@ export default function ComplianceCalendar() {
       {/* MANUAL ADD MODAL WITH DEPARTMENT DROPDOWN */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold mb-4">Add Manual Task</h2>
+          <div className="bg-white dark:bg-gray-950 p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <h2 className="text-xl dark:text-gray-50 font-bold mb-4">Add Manual Task</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label>
                 <input 
                   type="text" 
                   value={newTaskName}
                   onChange={(e) => setNewTaskName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  className="w-full dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
                   placeholder="e.g. Call Client"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
                 <select 
                   value={newTaskDept}
                   onChange={(e) => setNewTaskDept(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  className="w-full dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
                 >
                   {departments.map((dept, i) => <option key={i} value={dept}>{dept}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
                 <input 
                   type="date" 
                   value={newTaskDate}
                   onChange={(e) => setNewTaskDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  className="w-full dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
                 />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-              <button onClick={handleManualAdd} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium shadow-sm">Save Task</button>
+              <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">Cancel</button>
+              <button onClick={handleManualAdd} className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-950 rounded hover:bg-blue-700 dark:hover:bg-blue-400 font-medium shadow-sm">Save Task</button>
             </div>
           </div>
         </div>
@@ -647,17 +647,17 @@ export default function ComplianceCalendar() {
       {/* STICKY NOTE EDIT MODAL */}
       {isNoteModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-950 p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-bold mb-1 flex items-center dark:text-gray-100 gap-2">
               <StickyNote className="w-5 h-5 text-yellow-500" />
               Note for {new Date(activeNoteDate).toLocaleDateString()}
             </h2>
-            <p className="text-sm text-gray-500 mb-4">Add a quick reminder or context for this day.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Add a quick reminder or context for this day.</p>
             <textarea 
               value={activeNoteText}
               onChange={(e) => setActiveNoteText(e.target.value)}
               placeholder="e.g. Out of office today..."
-              className="w-full h-32 border border-yellow-300 bg-yellow-50 rounded-md p-3 focus:ring-2 focus:ring-yellow-500 outline-none resize-none text-yellow-900 shadow-inner"
+              className="w-full h-32 border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 rounded-md p-3 focus:ring-2 focus:ring-yellow-500 outline-none resize-none text-yellow-900 dark:text-yellow-300 shadow-inner"
             />
             <div className="flex justify-between items-center mt-6">
               <button onClick={() => {
@@ -665,10 +665,10 @@ export default function ComplianceCalendar() {
                 delete newNotes[activeNoteDate];
                 setDateNotes(newNotes);
                 setIsNoteModalOpen(false);
-              }} className="text-sm text-red-500 hover:text-red-700 px-2 font-medium">Delete Note</button>
+              }} className="text-sm text-red-500 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 px-2 font-medium">Delete Note</button>
               
               <div className="flex gap-2">
-                <button onClick={() => setIsNoteModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                <button onClick={() => setIsNoteModalOpen(false)} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">Cancel</button>
                 <button onClick={() => {
                   if (activeNoteText.trim() === "") {
                     const newNotes = {...dateNotes};
@@ -678,7 +678,7 @@ export default function ComplianceCalendar() {
                     setDateNotes({...dateNotes, [activeNoteDate]: activeNoteText});
                   }
                   setIsNoteModalOpen(false);
-                }} className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium shadow-sm">Save Note</button>
+                }} className="px-4 py-2 bg-yellow-500 dark:bg-yellow-400 text-white dark:text-gray-900 rounded hover:bg-yellow-600 dark:hover:bg-yellow-300 font-medium shadow-sm">Save Note</button>
               </div>
             </div>
           </div>

@@ -17,6 +17,7 @@ import DashboardLayout from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
 import DocumentViewer from "../components/DocumentViewer";
 import DocumentChat from "../components/DocumentChat";
+import { getDocumentDisplayName } from "../utils/documentName";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -167,6 +168,11 @@ export default function DocumentDetail() {
 
   useEffect(() => {
     if (document && !detailedSummary && !isGeneratingSummary) {
+      if (!document.python_file_id) {
+        setDetailedSummary(document.summary || "No summary available yet.");
+        return;
+      }
+
       const generateDetailedSummary = async () => {
         setIsGeneratingSummary(true);
         try {
@@ -176,7 +182,13 @@ export default function DocumentDetail() {
           const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || "http://localhost:8000";
           const response = await fetch(`${AI_BASE_URL}/documents/${docId}/detailed-summary`);
           
-          if (!response.ok) throw new Error("Failed to fetch detailed summary");
+          if (!response.ok) {
+            if (response.status === 404) {
+              setDetailedSummary(document.summary || "No summary available yet.");
+              return;
+            }
+            throw new Error("Failed to fetch detailed summary");
+          }
           
           const data = await response.json();
           setDetailedSummary(data.summary);
@@ -253,7 +265,11 @@ export default function DocumentDetail() {
     ? new Date(document.createdAt).toLocaleDateString()
     : "Not available";
   const commentCount = comments.length;
-  const displayFilename = document?.original_filename || document?.title || "Document";
+  const displayFilename = getDocumentDisplayName(document || undefined, "Document");
+  const directPreviewUrl =
+    document?.file_url && /^(https?:|blob:|data:)/i.test(document.file_url)
+      ? document.file_url
+      : undefined;
 
   if (loading || !profile) {
     return (
@@ -270,11 +286,11 @@ export default function DocumentDetail() {
   return (
     <DashboardLayout>
       <div className="relative min-h-[calc(100vh-73px)] xl:h-[calc(100vh-73px)] xl:overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-24 rounded-[2rem] bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.16),_transparent_38%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.12),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_58%,_#f4f7fb_100%)] sm:h-28" />
-        <div className="relative z-10 rounded-[1.25rem] border border-slate-200/80 bg-white/94 px-4 py-3 shadow-[0_16px_40px_-30px_rgba(15,23,42,0.24)] backdrop-blur sm:px-5 sm:py-4">
+        <div className="absolute inset-x-0 top-0 h-24 rounded-[2rem] bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.16),_transparent_38%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.12),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_58%,_#f4f7fb_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.25),_transparent_45%),    radial-gradient(circle_at_top_right,_rgba(5,150,105,0.18),_transparent_40%),    linear-gradient(180deg,_#0f172a_0%,_#020617_100%)] sm:h-28" />
+        <div className="relative z-10 rounded-[1.25rem] border border-slate-200/80 dark:border-slate-800/80 bg-white/94 dark:bg-slate-900/90 px-4 py-3 shadow-[0_16px_40px_-30px_rgba(15,23,42,0.24)] dark:shadow-[0_16px_40px_-20px_rgba(59,130,246,0.16)] backdrop-blur sm:px-5 sm:py-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
-              <button onClick={() => navigate("/dashboard")} className="mt-0.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50">
+              <button onClick={() => navigate("/dashboard")} className="mt-0.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2 text-slate-600 dark:text-slate-400 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 dark:hover:bg-slate-900">
                 <ArrowLeft className="h-4 w-4" />
               </button>
               <div className="min-w-0">
@@ -283,13 +299,13 @@ export default function DocumentDetail() {
                     {(document.urgency || "medium").toUpperCase()} Priority
                   </span>
                 </div>
-                <h1 className="max-w-4xl text-[1.35rem] font-semibold leading-tight tracking-tight text-gray-900 sm:text-[1.65rem] lg:text-[1.9rem]">{document.title}</h1>
+                <h1 className="max-w-4xl text-[1.35rem] font-semibold leading-tight tracking-tight text-gray-900 dark:text-gray-100 sm:text-[1.65rem] lg:text-[1.9rem]">{document.title}</h1>
               </div>
             </div>
-            <button onClick={() => setShowCommentDialog(true)} className="inline-flex w-full items-center justify-center gap-2 self-start rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-900/15 transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto lg:self-auto">
+            <button onClick={() => setShowCommentDialog(true)} className="inline-flex w-full items-center justify-center gap-2 self-start rounded-xl bg-slate-900 dark:bg-slate-200 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 shadow-lg shadow-slate-900/15 dark:shadow-slate-100/15 transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-slate-100 sm:w-auto lg:self-auto">
               <MessageSquare className="h-4 w-4" />
               Open Discussion
-              <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">{commentCount}</span>
+              <span className="rounded-full bg-white/15 dark:bg-slate-950/15 px-2 py-0.5 text-xs">{commentCount}</span>
             </button>
           </div>
         </div>
@@ -297,49 +313,49 @@ export default function DocumentDetail() {
         <div className="mt-4 grid gap-6 xl:h-[calc(100%-6.5rem)] xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.72fr)]">
           <div className="min-h-0 xl:overflow-y-auto xl:pr-1">
             <div className="flex min-h-full flex-col gap-6">
-            <div className="overflow-hidden rounded-[1.75rem] border border-blue-100 bg-white shadow-[0_22px_50px_-30px_rgba(37,99,235,0.4)]">
-              <div className="border-b border-blue-100 bg-[linear-gradient(135deg,_rgba(239,246,255,1)_0%,_rgba(248,250,252,1)_58%,_rgba(255,255,255,1)_100%)] p-5 sm:p-6">
+            <div className="overflow-hidden rounded-[1.75rem] border border-blue-100 dark:border-blue-900 dark:bg-slate-950 bg-white shadow-[0_22px_50px_-30px_rgba(37,99,235,0.4)]">
+              <div className="border-b border-blue-100 dark:border-blue-900 bg-[linear-gradient(135deg,_rgba(239,246,255,1)_0%,_rgba(248,250,252,1)_58%,_rgba(255,255,255,1)_100%)] dark:dark:bg-[linear-gradient(135deg,_#0f172a_0%,_#1e1b4b_50%,_#020617_100%)] p-5 sm:p-6">
                 <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-slate-500">
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 dark:bg-slate-950/80 bg-white/80 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-slate-500 dark:text-slate-400">
                       <Building2 className="h-4 w-4" />
                       <span className="text-xs font-semibold uppercase tracking-[0.16em]">Department</span>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900 sm:text-base">{document.department?.name || "Unassigned"}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{document.department?.name || "Unassigned"}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-slate-500">
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 dark:bg-slate-950/80 bg-white/80 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-slate-500 dark:text-slate-400">
                       <ShieldCheck className="h-4 w-4" />
                       <span className="text-xs font-semibold uppercase tracking-[0.16em]">Priority</span>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900 sm:text-base">{priorityLabel}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{priorityLabel}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-slate-500">
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 dark:bg-slate-950/80 bg-white/80 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-slate-500 dark:text-slate-400">
                       <MessageSquare className="h-4 w-4" />
                       <span className="text-xs font-semibold uppercase tracking-[0.16em]">Comments</span>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900 sm:text-base">{commentCount} {commentCount === 1 ? "comment" : "comments"}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{commentCount} {commentCount === 1 ? "comment" : "comments"}</p>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-blue-100 bg-white/90 p-4 sm:p-5">
-                  <p className="mb-3 text-xs font-bold uppercase tracking-widest text-blue-800">Detailed Analysis</p>
+                <div className="rounded-2xl border border-blue-100 dark:border-blue-900 bg-white/90 dark:bg-slate-950/80 p-4 sm:p-5">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-widest text-blue-800 dark:text-blue-200">Detailed Analysis</p>
                   {isGeneratingSummary ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-                      <p className="text-sm text-blue-700">Preparing a readable summary for this document...</p>
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-blue-400 border-t-transparent"></div>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">Preparing a readable summary for this document...</p>
                     </div>
                   ) : (
                     <div className="relative">
-                      <p className={`whitespace-pre-wrap text-sm leading-7 text-slate-700 transition-all duration-300 sm:text-[15px] ${isSummaryExpanded ? "" : "line-clamp-4"}`}>
+                      <p className={`whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300 transition-all duration-300 sm:text-[15px] ${isSummaryExpanded ? "" : "line-clamp-4"}`}>
                         {detailedSummary || document.summary || "No summary available yet."}
                       </p>
 
                       {((detailedSummary || document.summary)?.length || 0) > 250 && (
                         <button
                           onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-                          className="mt-4 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                          className="mt-4 inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100"
                         >
                           {isSummaryExpanded ? (
                             <>Show Less <ChevronUp className="h-3.5 w-3.5" /></>
@@ -353,22 +369,23 @@ export default function DocumentDetail() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_28px_70px_-38px_rgba(15,23,42,0.35)]">
-                <div className="border-b border-slate-200 bg-slate-50/90 px-5 py-4 sm:px-6">
+              <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.35)]">
+                <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-900/80 px-5 py-4 sm:px-6">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-slate-900/5 p-3 text-slate-700">
+                    <div className="rounded-2xl bg-slate-900/5 p-3 text-slate-700 dark:text-slate-300">
                       <FileText className="h-5 w-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Preview</p>
-                      <h2 className="truncate text-lg font-semibold text-slate-900">Interactive document viewer</h2>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Preview</p>
+                      <h2 className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">Interactive document viewer</h2>
                     </div>
                   </div>
                 </div>
-                <div className="h-[48vh] min-h-[280px] bg-white sm:h-[54vh] lg:h-[58vh] xl:h-[calc(100vh-22rem)]">
+                <div className="h-[48vh] min-h-[280px] bg-white dark:bg-slate-950 sm:h-[54vh] lg:h-[58vh] xl:h-[calc(100vh-22rem)]">
                   <DocumentViewer
                     fileId={document._id}
                     pythonFileId={document.python_file_id}
+                    fileUrl={directPreviewUrl}
                     fileName={displayFilename}
                     fileType={document.file_type}
                     isGmailAttachment={false}
@@ -380,7 +397,7 @@ export default function DocumentDetail() {
           </div>
 
           <div className="min-h-0">
-            <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_28px_70px_-40px_rgba(15,23,42,0.3)] xl:sticky xl:top-4 xl:h-[calc(100vh-12rem)]">
+            <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 dark:border-slate-800 dark:bg-gray-950 bg-white shadow-[0_28px_70px_-40px_rgba(15,23,42,0.3)] xl:sticky xl:top-4 xl:h-[calc(100vh-12rem)]">
               <div className="h-[420px] sm:h-[480px] lg:h-[520px] xl:h-full">
                 <DocumentChat documentId={document.python_file_id || document._id} />
               </div>
@@ -390,23 +407,23 @@ export default function DocumentDetail() {
 
         {showCommentDialog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <div className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b bg-slate-50 px-5 py-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-blue-600" /> Team Discussion
+            <div className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 dark:border-slate-800 dark:bg-slate-800 bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b bg-slate-50 dark:bg-slate-950 px-5 py-4">
+                <h3 className="text-lg dark:text-white font-semibold flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" /> Team Discussion
                 </h3>
-                <button onClick={() => setShowCommentDialog(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                <button onClick={() => setShowCommentDialog(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto bg-slate-50/60 p-4 space-y-4 sm:p-6">
+              <div className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-950/60 p-4 space-y-4 sm:p-6">
                 {comments.length === 0 ? (
-                    <p className="text-center text-gray-400 py-10">No comments yet.</p>
+                    <p className="text-center text-gray-400 dark:text-gray-600 py-10">No comments yet.</p>
                 ) : (
                     rootComments.map((comment) => (
-                    <div key={comment._id || comment.id} className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div key={comment._id || comment.id} className="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 shadow-sm">
                         <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 uppercase">
+                          <div className="w-8 h-8 bg-blue-600 dark:bg-blue-400 rounded-full flex items-center justify-center text-white dark:text-gray-950 font-semibold text-sm shrink-0 uppercase">
                               {getCommentAuthorAvatar(comment) ? (
                                 <img
                                   src={getCommentAuthorAvatar(comment)}
@@ -421,35 +438,35 @@ export default function DocumentDetail() {
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold text-sm">{getCommentAuthorName(comment)}</span>
-                                  <span className="text-xs text-gray-400">{new Date(comment.createdAt || "").toLocaleDateString()}</span>
+                                  <span className="text-xs text-gray-400 dark:text-gray-600">{new Date(comment.createdAt || "").toLocaleDateString()}</span>
                                 </div>
                                 
                                 {getCommentAuthorId(comment) === profile.id && (
                                   <button 
                                     onClick={() => handleDeleteComment(comment._id || comment.id || "")}
-                                    className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                                    className="text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
                                     title="Delete comment"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{comment.content}</p>
                               <div className="mt-3">
                                 <button
                                   onClick={() => setOpenReplyFor(openReplyFor === (comment._id || comment.id || "") ? null : (comment._id || comment.id || ""))}
-                                  className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                                  className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
                                 >
                                   Reply
                                 </button>
                               </div>
 
                               {getReplies(comment._id || comment.id || "").length > 0 && (
-                                <div className="mt-4 space-y-3 border-l-2 border-slate-200 pl-4">
+                                <div className="mt-4 space-y-3 border-l-2 border-slate-200 dark:border-slate-800 pl-4">
                                   {getReplies(comment._id || comment.id || "").map((reply) => (
-                                    <div key={reply._id || reply.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                    <div key={reply._id || reply.id} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3">
                                       <div className="flex items-start gap-3">
-                                        <div className="w-7 h-7 bg-slate-700 rounded-full flex items-center justify-center text-white font-semibold text-xs shrink-0 uppercase overflow-hidden">
+                                        <div className="w-7 h-7 bg-slate-700 dark:bg-slate-300 rounded-full flex items-center justify-center text-white dark:text-gray-950 font-semibold text-xs shrink-0 uppercase overflow-hidden">
                                           {getCommentAuthorAvatar(reply) ? (
                                             <img
                                               src={getCommentAuthorAvatar(reply)}
@@ -463,9 +480,9 @@ export default function DocumentDetail() {
                                         <div className="flex-1">
                                           <div className="flex items-center gap-2 mb-1">
                                             <span className="font-semibold text-xs">{getCommentAuthorName(reply)}</span>
-                                            <span className="text-xs text-gray-400">{new Date(reply.createdAt || "").toLocaleDateString()}</span>
+                                            <span className="text-xs text-gray-400 dark:text-gray-600">{new Date(reply.createdAt || "").toLocaleDateString()}</span>
                                           </div>
-                                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{reply.content}</p>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{reply.content}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -484,14 +501,14 @@ export default function DocumentDetail() {
                                       }))
                                     }
                                     placeholder="Write a reply..."
-                                    className="w-full p-3 border border-slate-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                                    className="w-full p-3 border border-slate-200 dark:border-slate-800 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-950 text-sm"
                                     rows={2}
                                   />
                                   <div className="flex justify-end mt-2">
                                     <button
                                       onClick={() => handleReply(comment._id || comment.id || "")}
                                       disabled={processing || !(replyDrafts[comment._id || comment.id || ""] || "").trim()}
-                                      className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition disabled:opacity-50 text-sm font-semibold"
+                                      className="px-4 py-2 bg-slate-800 dark:bg-slate-200 dark:text-gray-950 text-white rounded-lg hover:bg-slate-900 dark:hover:bg-slate-100 transition disabled:opacity-50 text-sm font-semibold"
                                     >
                                       {processing ? "Posting..." : "Reply"}
                                     </button>
@@ -504,16 +521,16 @@ export default function DocumentDetail() {
                     ))
                 )}
               </div>
-              <div className="border-t bg-white p-4">
+              <div className="border-t bg-white dark:bg-gray-950 p-4">
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Share your thoughts..."
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 text-sm focus:ring-2 focus:ring-blue-500"
                   rows={3}
                 />
                 <div className="flex justify-end mt-3">
-                  <button onClick={handleAddComment} disabled={processing || !newComment.trim()} className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:opacity-50">
+                  <button onClick={handleAddComment} disabled={processing || !newComment.trim()} className="flex items-center gap-2 rounded-xl bg-blue-600 dark:bg-blue-400 px-6 py-2 text-sm font-semibold text-white dark:text-slate-950 shadow-md transition hover:bg-blue-700 dark:hover:bg-blue-300  disabled:opacity-50">
                     {processing ? "Posting..." : "Post Comment"} <Send className="w-4 h-4" />
                   </button>
                 </div>

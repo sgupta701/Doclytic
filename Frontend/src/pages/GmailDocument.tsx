@@ -24,6 +24,8 @@ interface GmailFile {
 
 }
 
+import { getAttachmentDisplayName } from "../utils/documentName";
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const API_URL = `${BASE_URL}`.replace(/\/$/, "");
 
@@ -54,8 +56,6 @@ export default function GmailDocument() {
   const [downloading, setDownloading] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
-  const getDisplayFilename = (name: string) => name.replace(/^\d{10,}[-_]+/, "");
-
   useEffect(() => {
     loadFileDetails();
   }, [id]);
@@ -103,7 +103,7 @@ export default function GmailDocument() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = getDisplayFilename(file.filename);
+      a.download = getAttachmentDisplayName(file, "Attachment");
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -176,7 +176,7 @@ export default function GmailDocument() {
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-2">{getDisplayFilename(file.filename)}</h1>
+              <h1 className="text-3xl font-bold mb-2">{getAttachmentDisplayName(file, "Attachment")}</h1>
               <p className="text-gray-600">
                 <Clock className="w-4 h-4 inline mr-1" />
                 {new Date(file.uploadDate).toLocaleDateString("en-US", {
@@ -248,7 +248,7 @@ export default function GmailDocument() {
             <div className="bg-white rounded-xl shadow-sm border min-h-[28rem] lg:min-h-[38rem]">
               <DocumentViewer
                 fileId={file._id}
-                fileName={getDisplayFilename(file.metadata?.originalFilename || file.filename)}
+                fileName={getAttachmentDisplayName(file, "Attachment")}
                 fileType={file.metadata?.contentType || file.contentType}
                 isGmailAttachment={true}
               />

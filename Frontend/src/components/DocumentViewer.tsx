@@ -16,6 +16,7 @@ interface DocumentViewerProps {
 
 const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api\/?$/, "");
 const API_URL = `${BASE_URL}/api`;
+const AI_API_URL = (import.meta.env.VITE_AI_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 const extensionToMimeType: Record<string, string> = {
   pdf: "application/pdf",
@@ -177,6 +178,14 @@ export default function DocumentViewer({
     };
   };
 
+  const resolveSourceUrl = (source: string) => {
+    const trimmed = (source || "").trim();
+    if (!trimmed) return "";
+    if (/^(https?:|blob:|data:)/i.test(trimmed)) return trimmed;
+    if (trimmed.startsWith("/")) return `${BASE_URL}${trimmed}`;
+    return `${BASE_URL}/${trimmed}`;
+  };
+
   const effectiveTypeLooksTextLike = (contentType: string) => {
     const type = contentType.toLowerCase();
     return (
@@ -264,7 +273,7 @@ export default function DocumentViewer({
 
     try {
       if (fileUrl) {
-        setViewUrl(fileUrl);
+        setViewUrl(resolveSourceUrl(fileUrl));
         setResolvedFileName(fileName);
         setResolvedFileType(fileType || "");
         setLoading(false);
@@ -292,12 +301,66 @@ export default function DocumentViewer({
           const res = await authFetch(`${API_URL}/documents/${fileId}`);
           if (!res.ok) throw new Error("Failed to load document");
           const data = await res.json();
+          if (data.file_url) {
+            const sourceUrl = resolveSourceUrl(data.file_url);
+            if (/^(https?:|blob:|data:)/i.test((data.file_url || "").trim())) {
+              setResolvedFileName(data.original_filename || data.title || fileName);
+              setResolvedFileType(data.file_type || fileType || "");
+              setViewUrl(sourceUrl);
+              setLoading(false);
+              return;
+            }
+
+            const fileUrlRes = await authFetch(sourceUrl);
+            if (fileUrlRes.ok) {
+              const rawBlob = await fileUrlRes.blob();
+              const resolvedName =
+                getFilenameFromContentDisposition(fileUrlRes.headers.get("content-disposition")) ||
+                fileUrlRes.headers.get("x-original-filename") ||
+                data.original_filename ||
+                data.title ||
+                fileName;
+              const normalized = normalizeBlob(
+                rawBlob,
+                resolvedName,
+                fileUrlRes.headers.get("content-type") || data.file_type || fileType || ""
+              );
+              setResolvedFileName(resolvedName);
+              setResolvedFileType(normalized.contentType);
+              setViewUrl(URL.createObjectURL(normalized.blob));
+              return;
+            }
+          }
+
           const fileRes = await authFetch(`${API_URL}/documents/${fileId}/download`);
-          if (!fileRes.ok) throw new Error("Failed to fetch document bytes");
+          if (!fileRes.ok) {
+            if (pythonFileId) {
+              const pythonRes = await fetch(`${AI_API_URL}/documents/${pythonFileId}/download`);
+              if (!pythonRes.ok) throw new Error("Failed to fetch document bytes");
+              const pythonBlob = await pythonRes.blob();
+              const resolvedName =
+                getFilenameFromContentDisposition(pythonRes.headers.get("content-disposition")) ||
+                pythonRes.headers.get("x-original-filename") ||
+                data.original_filename ||
+                data.title ||
+                fileName;
+              const normalized = normalizeBlob(
+                pythonBlob,
+                resolvedName,
+                pythonRes.headers.get("content-type") || data.file_type || fileType || ""
+              );
+              setResolvedFileName(resolvedName);
+              setResolvedFileType(normalized.contentType);
+              setViewUrl(URL.createObjectURL(normalized.blob));
+              return;
+            }
+            throw new Error("Failed to fetch document bytes");
+          }
           const rawBlob = await fileRes.blob();
           const resolvedName =
             getFilenameFromContentDisposition(fileRes.headers.get("content-disposition")) ||
             fileRes.headers.get("x-original-filename") ||
+            data.original_filename ||
             data.title ||
             fileName;
           const normalized = normalizeBlob(
@@ -312,7 +375,7 @@ export default function DocumentViewer({
       }
     } catch (err) {
       console.error("Document load error:", err);
-      setError("Failed to load document preview");
+      setError("Failed to load document preview. This document may not have a stored file yet.");
     } finally {
       setLoading(false);
     }
@@ -453,7 +516,7 @@ export default function DocumentViewer({
     // Images
     if (["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"].includes(ext) || effectiveType.includes("image")) {
       return (
-        <div className="flex items-center justify-center h-full bg-gray-50 overflow-auto">
+        <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
           <img
             src={viewUrl}
             alt={fileName}
@@ -478,13 +541,13 @@ export default function DocumentViewer({
     // Audio
     if (["mp3", "wav", "ogg", "m4a", "aac", "flac"].includes(ext) || effectiveType.includes("audio")) {
       return (
-        <div className="flex flex-col items-center justify-center h-full bg-gray-50 gap-4">
-          <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center">
-            <svg className="w-12 h-12 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+        <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 gap-4">
+          <div className="w-24 h-24 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+            <svg className="w-12 h-12 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
             </svg>
           </div>
-          <p className="text-gray-700 font-medium">{resolvedFileName || fileName}</p>
+          <p className="text-gray-700 dark:text-gray-300 font-medium">{resolvedFileName || fileName}</p>
           <audio src={viewUrl} controls className="w-80">
             Your browser does not support audio playback.
           </audio>
@@ -503,7 +566,7 @@ export default function DocumentViewer({
     ) {
       if (textContent) {
         return (
-          <pre className="w-full h-full overflow-auto bg-white p-6 text-sm leading-6 whitespace-pre-wrap break-words">
+          <pre className="w-full h-full overflow-auto bg-white dark:bg-slate-900 p-6 text-sm leading-6 whitespace-pre-wrap break-words">
             {textContent}
           </pre>
         );
@@ -514,11 +577,11 @@ export default function DocumentViewer({
 
     // Word Documents — mammoth converts to HTML in browser
     if (isWordDocument || effectiveType.includes("word") || effectiveType.includes("msword")) {
-      if (officeLoading) return renderOfficeLoading("border-blue-600", "Converting Word document...");
+      if (officeLoading) return renderOfficeLoading("border-blue-600 dark:border-blue-500", "Converting Word document...");
       if (docHtml) {
         return (
           <div
-            className="w-full h-full overflow-auto p-8 bg-white prose max-w-none"
+            className="w-full h-full overflow-auto p-8 bg-white dark:bg-slate-900 prose max-w-none"
             dangerouslySetInnerHTML={{ __html: docHtml }}
           />
         );
@@ -531,7 +594,7 @@ export default function DocumentViewer({
       if (sheetHtml) {
         return (
           <div
-            className="w-full h-full overflow-auto p-4 bg-white"
+            className="w-full h-full overflow-auto p-4 bg-white dark:bg-slate-900"
             style={{ fontSize: "13px" }}
             dangerouslySetInnerHTML={{ __html: sheetHtml }}
           />
@@ -552,16 +615,16 @@ export default function DocumentViewer({
         );
       }
       return (
-        <div className="flex flex-col items-center justify-center h-full bg-gray-50 p-8 gap-4">
+        <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-8 gap-4">
           <FileText className="w-20 h-20 text-orange-500" />
-          <p className="text-gray-700 font-semibold">PowerPoint Presentation</p>
-          <p className="text-gray-500 text-sm text-center">
+          <p className="text-gray-700 dark:text-gray-300 font-semibold">PowerPoint Presentation</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
             PowerPoint files can't be previewed locally.<br />
             Upload to a public server (S3) to enable preview.
           </p>
           <button
             onClick={handleDownload}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 dark:bg-blue-500 dark:text-slate-950 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 dark:hover:bg-blue-400"
           >
             <Download className="w-5 h-5" />
             Download to View
@@ -572,15 +635,15 @@ export default function DocumentViewer({
 
     // Safe fallback: don't force unsupported files into an iframe because some browsers download them.
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-gray-50 p-8">
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-950 p-8">
         <File className="w-20 h-20 text-gray-400 mb-4" />
-        <p className="text-gray-700 font-semibold mb-2">{resolvedFileName || fileName}</p>
-        <p className="text-gray-600 mb-4 text-center">
+        <p className="text-gray-700 dark:text-gray-300 font-semibold mb-2">{resolvedFileName || fileName}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4 text-center">
           This file type cannot be previewed directly in your browser.
         </p>
         <button
           onClick={handleDownload}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700"
+          className="px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white dark:text-slate-950 rounded-lg flex items-center gap-2 hover:bg-blue-700 dark:hover:bg-blue-400"
         >
           <Download className="w-5 h-5" />
           Download File
@@ -591,10 +654,10 @@ export default function DocumentViewer({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
+      <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading preview...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading preview...</p>
         </div>
       </div>
     );
@@ -602,13 +665,13 @@ export default function DocumentViewer({
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-gray-50 p-8">
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-950 p-8">
         <File className="w-20 h-20 text-red-400 mb-4" />
         <p className="text-red-600 font-semibold mb-2">Preview Error</p>
         <p className="text-gray-600 mb-4">{error}</p>
         <button
           onClick={loadDocument}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 bg-blue-600 dark:bg-blue-500 dark:text-slate-950 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-400"
         >
           Retry
         </button>
@@ -617,22 +680,22 @@ export default function DocumentViewer({
   }
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-lg border overflow-hidden">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-lg border overflow-hidden">
       {/* Zoom Controls — shown for PDF and images */}
       {["pdf", "jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(getFileExtension()) && (
-        <div className="flex items-center gap-2 p-3 border-b bg-gray-50">
-          <button onClick={() => setZoom(Math.max(50, zoom - 25))} className="p-2 hover:bg-gray-200 rounded" title="Zoom Out">
+        <div className="flex items-center gap-2 p-3 border-b bg-gray-50 dark:bg-gray-900">
+          <button onClick={() => setZoom(Math.max(50, zoom - 25))} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded" title="Zoom Out">
             <ZoomOut className="w-4 h-4" />
           </button>
           <span className="text-sm font-medium min-w-[60px] text-center">{zoom}%</span>
-          <button onClick={() => setZoom(Math.min(200, zoom + 25))} className="p-2 hover:bg-gray-200 rounded" title="Zoom In">
+          <button onClick={() => setZoom(Math.min(200, zoom + 25))} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded" title="Zoom In">
             <ZoomIn className="w-4 h-4" />
           </button>
-          <button onClick={() => setZoom(100)} className="ml-2 px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded">
+          <button onClick={() => setZoom(100)} className="ml-2 px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded">
             Reset
           </button>
           <div className="flex-1" />
-          <button onClick={handleDownload} className="px-3 py-1 bg-blue-600 text-white rounded flex items-center gap-2 hover:bg-blue-700">
+          <button onClick={handleDownload} className="px-3 py-1 bg-blue-600 dark:bg-blue-500 dark:text-slate-950 text-white rounded flex items-center gap-2 hover:bg-blue-700 dark:hover:bg-blue-400">
             <Download className="w-4 h-4" />
             Download
           </button>
