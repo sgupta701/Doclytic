@@ -1,6 +1,6 @@
 # Doclytic - A Unified Document Intelligence System
 
-Doclytic is a unified document ecosystem that uses OCR and deep learning to extract, classify, summarize, and route documents automatically to relevant departments, improving efficiency and accuracy in handling large volumes of paperwork.
+Doclytic is a unified document ecosystem that uses OCR and deep learning to extract, classify, summarize, and route documents automatically to relevant departments, improving efficiency and accuracy in handling large volumes of paperwork. 
 
 ---
 
