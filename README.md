@@ -6,7 +6,7 @@ Doclytic is a unified document ecosystem that uses OCR and deep learning to extr
 
 ## Key Features
 
-* **OCR-Based Document Processing** – Extract text from scanned documents and images
+* **OCR-Based Document Processing** – Extract text from scanned documents and images.
 * **AI-Powered Classification** – Automatically categorize documents as per their departments.
 * **Quick Extract Summarization** – Generate concise summaries
 * **Multi Document Summarization** – Generate combined summaries of multiple docs based on time and priority.
